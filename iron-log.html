@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>IRON LOG - 筋トレ記録</title>
+<style>
+  :root {
+    --bg: #1E1C1A; --surface: #28241F; --surface-alt: #332D26; --border: #42392F;
+    --text: #F2ECE1; --text-muted: #A79C89; --accent: #C1442A; --accent2: #B9905A;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; padding-bottom: 76px; }
+  header { padding: 22px 20px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  header h1 { font-size: 17px; font-weight: 800; letter-spacing: 0.05em; margin: 0; }
+  main { max-width: 420px; margin: 0 auto; padding: 18px 16px 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .today-card { background: var(--surface-alt); border: 1px solid var(--accent2); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .today-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .eyebrow { font-size: 11px; font-weight: 700; color: var(--accent2); letter-spacing: 0.06em; }
+  .toggle-btn { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 5px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--text); cursor: pointer; }
+  .today-title { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+  .ex-row-wrap { display: flex; align-items: stretch; gap: 6px; margin-bottom: 6px; }
+  .ex-row { display: flex; flex-direction: column; background: var(--surface); border-radius: 10px; padding: 9px 11px; cursor: pointer; border: none; flex: 1; min-width: 0; text-align: left; color: var(--text); font-family: inherit; }
+  .ex-row-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  .ex-row-top span:first-child { font-size: 13.5px; }
+  .ex-row .target { font-size: 11.5px; color: var(--accent2); font-family: ui-monospace, monospace; white-space: nowrap; margin-left: 8px; text-align: right; line-height: 1.5; }
+  .ex-row .bench-line { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .video-btn { display: flex; align-items: center; justify-content: center; width: 38px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--accent2); font-size: 14px; cursor: pointer; }
+  .hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+  .rest-row { display:flex; align-items:center; gap:8px; color: var(--text-muted); padding: 6px 0; font-size: 13.5px; }
+  label.field-label { display: block; font-size: 11.5px; color: var(--text-muted); margin-bottom: 4px; }
+  .field { margin-bottom: 12px; }
+  select, input { width: 100%; background: var(--surface-alt); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 9px 11px; font-size: 14px; font-family: inherit; }
+  input[type=number] { font-family: ui-monospace, monospace; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-primary { width: 100%; margin-top: 10px; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .log-item { display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .log-item .name { font-size: 13.5px; font-weight: 600; margin: 0; }
+  .log-item .stat { font-size: 12px; color: var(--accent2); font-family: ui-monospace, monospace; margin: 2px 0 0; }
+  .del-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; font-size: 14px; }
+  .section-label { font-size: 11.5px; color: var(--text-muted); margin: 0 2px 8px; }
+  .empty { font-size: 13.5px; color: var(--text-muted); }
+  .add-row { display: flex; gap: 8px; }
+  .add-row input { flex: 1; }
+  .add-row button { background: var(--accent); border: none; color: #fff; border-radius: 10px; padding: 0 14px; font-size: 18px; cursor: pointer; }
+  .pr-num { font-size: 30px; font-weight: 800; font-family: ui-monospace, monospace; color: var(--accent); margin: 2px 0 0; }
+  .pr-num span { font-size: 15px; color: var(--text-muted); font-weight: 500; }
+  .chart-wrap { position: relative; height: 180px; }
+  nav.tabbar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 8px 0; }
+  nav.tabbar button { background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); font-size: 10.5px; padding: 4px 10px; cursor: pointer; font-family: inherit; }
+  nav.tabbar button.active { color: var(--accent); }
+  .toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff; padding: 8px 16px; border-radius: 999px; font-size: 13px; display: none; }
+  .day-head { display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .day-name { font-weight: 700; font-size: 14px; }
+  .day-type-badge { font-size: 11px; color: var(--accent2); margin-left: 8px; }
+  .day-summary { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+  .day-toggle { color: var(--text-muted); font-size: 12px; white-space: nowrap; margin-left: 8px;}
+  .ex-edit-row { background: var(--surface-alt); border: 1px solid var(--border); border-radius: 10px; padding: 8px; margin-bottom: 6px; }
+  .ex-edit-top { display: flex; gap: 6px; margin-bottom: 6px; }
+  .ex-edit-top input { flex: 1; }
+  .subhead { font-size: 11.5px; color: var(--text-muted); margin: 14px 2px 8px; }
+  .ex-edit-row .field { margin-bottom: 6px; }
+  .backup-row { display: flex; gap: 8px; margin-top: 8px; }
+  .backup-btn { flex: 1; background: var(--surface-alt); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px; font-size: 13px; cursor: pointer; text-align: center; }
+  .suggest-line { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; padding: 6px 8px; background: rgba(193,68,42,0.12); border: 1px solid var(--accent); border-radius: 8px; font-size: 11px; color: var(--text); }
+  .apply-btn { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; flex-shrink: 0; }
+  .memo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 16px; }
+  .memo-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .memo-body { font-size: 12.5px; color: var(--text-muted); line-height: 1.7; margin-top: 10px; }
+  .memo-body b { color: var(--text); }
+  .muscle-line { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+<header><span style="font-size:20px;">🏋️</span><h1>IRON LOG</h1></header>
+<main id="app"></main>
+<div id="toast" class="toast"></div>
+<nav class="tabbar">
+  <button data-tab="log" onclick="setTab('log')">📋<span>記録</span></button>
+  <button data-tab="week" onclick="setTab('week')">🗓️<span>週間</span></button>
+  <button data-tab="chart" onclick="setTab('chart')">📈<span>グラフ</span></button>
+  <button data-tab="exercises" onclick="setTab('exercises')">🏋️<span>種目</span></button>
+</nav>
+
+<script>
+const WEEKDAY_JP = ["日","月","火","水","木","金","土"];
+const WEEK_ORDER = [1,2,3,4,5,6,0];
+
+const DEFAULT_PROGRAM = {
+  1: { type: "rest" },
+  3: { type: "rest" },
+  5: { type: "rest" },
+  6: { type: "main", title: "下半身メイン",
+    heavy: [
+      {name:"ゴブレットスクワット", target:"15〜18kg", bench:"", sets:4, reps:"6回"},
+      {name:"ルーマニアンデッドリフト", target:"15〜18kg", bench:"", sets:4, reps:"6回"},
+      {name:"ブルガリアンスプリットスクワット", target:"片手10〜12kg", bench:"フラット(0度)に後ろ足を乗せる", sets:3, reps:"6回(片脚ずつ)"},
+      {name:"腹筋ローラー", target:"自重", bench:"", sets:3, reps:"8〜10回"},
+    ],
+    reps: [
+      {name:"ゴブレットスクワット", target:"8〜10kg", bench:"", sets:3, reps:"15回"},
+      {name:"ルーマニアンデッドリフト", target:"8〜10kg", bench:"", sets:3, reps:"15回"},
+      {name:"ブルガリアンスプリットスクワット", target:"6〜8kg", bench:"フラット(0度)に後ろ足を乗せる", sets:3, reps:"12回(片脚ずつ)"},
+      {name:"マウンテンクライマー", target:"自重", bench:"", sets:3, reps:"30秒"},
+    ]
+  },
+  0: { type: "main", title: "上半身プッシュ",
+    heavy: [
+      {name:"ダンベルベンチプレス", target:"片手12〜15kg", bench:"フラット(0度)", sets:4, reps:"6回"},
+      {name:"シーテッドショルダープレス", target:"片手10〜12kg", bench:"ほぼ垂直(80〜90度)", sets:3, reps:"6回"},
+      {name:"インクラインダンベルプレス", target:"片手10〜12kg", bench:"30〜45度", sets:3, reps:"6回"},
+      {name:"サイドプランク", target:"自重", bench:"", sets:3, reps:"30〜40秒(左右)"},
+    ],
+    reps: [
+      {name:"ダンベルベンチプレス", target:"8〜10kg", bench:"フラット(0度)", sets:3, reps:"15回"},
+      {name:"シーテッドショルダープレス", target:"6〜8kg", bench:"ほぼ垂直(80〜90度)", sets:3, reps:"15回"},
+      {name:"インクラインダンベルプレス", target:"6〜8kg", bench:"30〜45度", sets:3, reps:"15回"},
+      {name:"腹筋ローラー", target:"自重", bench:"", sets:3, reps:"10〜12回"},
+    ]
+  },
+  2: { type: "main", title: "上半身プル",
+    heavy: [
+      {name:"ベントオーバーロウ", target:"片手15〜18kg", bench:"", sets:4, reps:"6回"},
+      {name:"シングルアームロウ", target:"片手15〜18kg", bench:"フラット(0度)に片膝・片手で支える", sets:3, reps:"6回(片腕ずつ)"},
+      {name:"ラテラルレイズ", target:"片手6〜8kg", bench:"", sets:3, reps:"8回"},
+      {name:"アームカール", target:"片手10〜12kg", bench:"", sets:3, reps:"6回"},
+    ],
+    reps: [
+      {name:"ベントオーバーロウ", target:"8〜10kg", bench:"", sets:3, reps:"15回"},
+      {name:"シングルアームロウ", target:"10〜12kg", bench:"フラット(0度)に片膝・片手で支える", sets:3, reps:"15回(片腕ずつ)"},
+      {name:"ラテラルレイズ", target:"4〜6kg", bench:"", sets:3, reps:"15回"},
+      {name:"アームカール", target:"6〜8kg", bench:"", sets:3, reps:"15回"},
+    ]
+  },
+  4: { type: "light", title: "上半身補助(軽め・固定)", exercises: [
+      {name:"ダンベルトライセップスエクステンション", target:"片手6〜8kg", bench:"フラット(0度)に仰向け", sets:3, reps:"12回"},
+      {name:"ベントオーバーリアレイズ", target:"片手4〜6kg", bench:"", sets:3, reps:"15回"},
+      {name:"アームカール", target:"8〜10kg", bench:"", sets:3, reps:"12回"},
+      {name:"プランク", target:"自重", bench:"", sets:3, reps:"40秒"},
+  ]},
+};
+
+const DEFAULT_EXERCISES_META = [
+  {name:"ゴブレットスクワット", primary:"大腿四頭筋", secondary:"臀筋・体幹"},
+  {name:"ダンベルベンチプレス", primary:"大胸筋", secondary:"上腕三頭筋・三角筋前部"},
+  {name:"シーテッドショルダープレス", primary:"三角筋", secondary:"上腕三頭筋"},
+  {name:"ルーマニアンデッドリフト", primary:"ハムストリングス", secondary:"臀筋・脊柱起立筋"},
+  {name:"ベントオーバーロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋"},
+  {name:"ブルガリアンスプリットスクワット", primary:"大腿四頭筋", secondary:"臀筋"},
+  {name:"インクラインダンベルプレス", primary:"大胸筋上部", secondary:"三角筋前部・上腕三頭筋"},
+  {name:"ラテラルレイズ", primary:"三角筋中部", secondary:""},
+  {name:"シングルアームロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋"},
+  {name:"アームカール", primary:"上腕二頭筋", secondary:"前腕"},
+  {name:"ヒップリフト", primary:"臀筋", secondary:"ハムストリングス"},
+  {name:"プランク", primary:"腹直筋・体幹", secondary:""},
+  {name:"サイドプランク", primary:"腹斜筋", secondary:""},
+  {name:"マウンテンクライマー", primary:"体幹", secondary:"心肺(有酸素)"},
+  {name:"腹筋ローラー", primary:"腹直筋", secondary:"広背筋・肩"},
+  {name:"ダンベルトライセップスエクステンション", primary:"上腕三頭筋", secondary:""},
+  {name:"ベントオーバーリアレイズ", primary:"三角筋後部", secondary:"僧帽筋"},
+];
+
+function uid(p){ return p+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,7); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function mondayOf(d){
+  const date = new Date(d);
+  const day = date.getDay();
+  date.setDate(date.getDate() + (day===0 ? -6 : 1-day));
+  date.setHours(0,0,0,0);
+  return date;
+}
+function weekKeyFor(d){ return mondayOf(d).toISOString().slice(0,10); }
+function defaultWeekTypeFor(d){
+  const REF = new Date("2026-08-10T00:00:00");
+  const diffWeeks = Math.round((mondayOf(d)-REF)/(7*86400000));
+  return diffWeeks % 2 === 0 ? "heavy" : "reps";
+}
+function load(key, fallback){
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; }
+}
+function save(key, val){
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){ showToast("保存エラー"); }
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+let exercises = load("ironlog_exercises", DEFAULT_EXERCISES_META.map((m,i)=>({id:"ex_"+i, name:m.name, primary:m.primary, secondary:m.secondary})));
+let logs = load("ironlog_logs", []);
+let program = load("ironlog_program", DEFAULT_PROGRAM);
+let tab = "log";
+let selectedExId = exercises[0] ? exercises[0].id : null;
+let form = { date: todayStr() };
+let logFilterMode = "today";
+let showMemo = false;
+let editingDay = null;
+
+(function initWeekType(){
+  const now = new Date();
+  const todayKey = weekKeyFor(now);
+  const savedWT = load("ironlog_weektype", null);
+  let wt = defaultWeekTypeFor(now);
+  if (savedWT && savedWT.weekKey === todayKey) wt = savedWT.type;
+  save("ironlog_weektype", {weekKey: todayKey, type: wt});
+  window.__weekType = wt;
+  window.__weekKey = todayKey;
+})();
+
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display = "block";
+  setTimeout(()=>{ t.style.display="none"; }, 1500);
+}
+function setTab(t){ tab = t; render(); }
+function toggleWeekType(){
+  window.__weekType = window.__weekType === "heavy" ? "reps" : "heavy";
+  save("ironlog_weektype", {weekKey: window.__weekKey, type: window.__weekType});
+  render();
+}
+function openVideoSearch(name){
+  const q = encodeURIComponent(name + " ダンベル フォーム 正しいやり方");
+  window.open("https://www.youtube.com/results?search_query=" + q, "_blank");
+}
+function pickExerciseByName(name){
+  const found = exercises.find(e=>e.name===name);
+  if (found) selectedExId = found.id;
+  tab = "log";
+  render();
+}
+function addExercise(){
+  const val = document.getElementById("newExInput").value.trim();
+  if(!val) return;
+  exercises = [...exercises, {id: uid("ex"), name: val, primary:"", secondary:""}];
+  save("ironlog_exercises", exercises);
+  render();
+}
+function deleteExercise(id){
+  exercises = exercises.filter(e=>e.id!==id);
+  save("ironlog_exercises", exercises);
+  if (selectedExId===id) selectedExId = exercises[0] ? exercises[0].id : null;
+  render();
+}
+function updateExerciseMeta(id, field, value){
+  const ex = exercises.find(e=>e.id===id);
+  if (!ex) return;
+  ex[field] = value;
+  save("ironlog_exercises", exercises);
+}
+function getExMeta(name){ return exercises.find(e=>e.name===name); }
+function addLog(){
+  const w = document.getElementById("inWeight").value;
+  const r = document.getElementById("inReps").value;
+  const s = document.getElementById("inSets").value;
+  const d = document.getElementById("inDate").value;
+  if(!selectedExId || w==="" || r==="" || s==="") return;
+  logs = [...logs, {id: uid("log"), exerciseId: selectedExId, date: d, weight: parseFloat(w), reps: parseInt(r,10), sets: parseInt(s,10)}];
+  save("ironlog_logs", logs);
+  form = {date: d};
+  showToast("記録した");
+  render();
+}
+function deleteLog(id){ logs = logs.filter(l=>l.id!==id); save("ironlog_logs", logs); render(); }
+function onSelectExercise(id){ selectedExId = id; render(); }
+function onDateChange(v){ form.date = v; render(); }
+function toggleLogFilter(){ logFilterMode = logFilterMode === "today" ? "all" : "today"; render(); }
+function toggleMemo(){ showMemo = !showMemo; render(); }
+
+function parseTargetKgRange(target){
+  if (!target) return null;
+  const nums = target.match(/\d+(\.\d+)?/g);
+  if (!nums) return null;
+  const vals = nums.map(Number);
+  return { min: Math.min(...vals), max: Math.max(...vals) };
+}
+function parseRepsTarget(reps){
+  if (!reps || reps.indexOf("秒") !== -1) return null;
+  const m = reps.match(/^(\d+)回/);
+  return m ? parseInt(m[1],10) : null;
+}
+function getLastLogForExerciseName(name){
+  const ex = exercises.find(e=>e.name===name);
+  if (!ex) return null;
+  const matched = logs.filter(l=>l.exerciseId===ex.id).sort((a,b)=> a.date===b.date ? (a.id<b.id?1:-1) : a.date<b.date?1:-1);
+  return matched[0] || null;
+}
+function applySuggestedWeight(dow, variant, idx, newWeight){
+  const p = program[dow];
+  const arr = variant === "exercises" ? p.exercises : p[variant];
+  const ex = arr[idx];
+  const prefixMatch = ex.target.match(/^([^\d]*)/);
+  const prefix = prefixMatch ? prefixMatch[1] : "";
+  ex.target = `${prefix}${newWeight}kg`;
+  save("ironlog_program", program);
+  showToast(ex.name + "の目安を更新した");
+  render();
+}
+
+function exportData(){
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    exercises, logs, program,
+    weekType: load("ironlog_weektype", null),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "iron-log-backup-" + todayStr() + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("バックアップを書き出した");
+}
+function triggerImport(){ document.getElementById("importFileInput").click(); }
+function importData(fileInput){
+  const file = fileInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.exercises || !data.logs) { showToast("ファイルの形式が違うかも"); return; }
+      if (!confirm("今のデータを上書きして読み込む?")) return;
+      exercises = data.exercises;
+      logs = data.logs;
+      program = data.program || DEFAULT_PROGRAM;
+      save("ironlog_exercises", exercises);
+      save("ironlog_logs", logs);
+      save("ironlog_program", program);
+      if (data.weekType) { save("ironlog_weektype", data.weekType); window.__weekType = data.weekType.type; window.__weekKey = data.weekType.weekKey; }
+      selectedExId = exercises[0] ? exercises[0].id : null;
+      showToast("データを読み込んだ");
+      render();
+    } catch(err) {
+      showToast("読み込みエラー");
+    }
+  };
+  reader.readAsText(file);
+  fileInput.value = "";
+}
+function getWeekTypeForDate(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  const wk = weekKeyFor(d);
+  if (wk === window.__weekKey) return window.__weekType;
+  return defaultWeekTypeFor(d);
+}
+function programExercisesForDate(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  const dow = d.getDay();
+  const p = program[dow];
+  if (!p || p.type === "rest") return [];
+  if (p.type === "light") return (p.exercises||[]).map(e=>e.name);
+  if (p.type === "main") {
+    const wt = getWeekTypeForDate(dateStr);
+    return (wt === "heavy" ? p.heavy : p.reps).map(e=>e.name);
+  }
+  return [];
+}
+
+// ---- 週間プログラム編集 ----
+function toggleEditDay(dow){
+  if (editingDay === dow) { harvestDay(dow); editingDay = null; }
+  else { editingDay = dow; }
+  render();
+}
+function harvestExRow(dow, variant, idx, fallback){
+  const nameEl = document.getElementById(`ex-${dow}-${variant}-${idx}-name`);
+  const targetEl = document.getElementById(`ex-${dow}-${variant}-${idx}-target`);
+  const benchEl = document.getElementById(`ex-${dow}-${variant}-${idx}-bench`);
+  const setsEl = document.getElementById(`ex-${dow}-${variant}-${idx}-sets`);
+  const repsEl = document.getElementById(`ex-${dow}-${variant}-${idx}-reps`);
+  return {
+    name: nameEl ? nameEl.value : fallback.name,
+    target: targetEl ? targetEl.value : fallback.target,
+    bench: benchEl ? benchEl.value : (fallback.bench||""),
+    sets: setsEl ? (parseInt(setsEl.value,10) || fallback.sets) : fallback.sets,
+    reps: repsEl ? repsEl.value : fallback.reps,
+  };
+}
+function harvestDay(dow){
+  const p = program[dow];
+  if (!p || p.type === "rest") return;
+  const titleEl = document.getElementById(`title-${dow}`);
+  if (titleEl) p.title = titleEl.value;
+  if (p.type === "light") p.exercises = (p.exercises||[]).map((ex,idx)=>harvestExRow(dow,"exercises",idx,ex));
+  if (p.type === "main") {
+    p.heavy = (p.heavy||[]).map((ex,idx)=>harvestExRow(dow,"heavy",idx,ex));
+    p.reps = (p.reps||[]).map((ex,idx)=>harvestExRow(dow,"reps",idx,ex));
+  }
+}
+function setDayType(dow, type){
+  harvestDay(dow);
+  const cur = program[dow] || {};
+  if (type === "rest") program[dow] = {type:"rest"};
+  else if (type === "light") program[dow] = {type:"light", title: cur.title||"", exercises: cur.exercises && cur.exercises.length ? cur.exercises : [{name:"",target:"",bench:"",sets:3,reps:"12回"}]};
+  else if (type === "main") program[dow] = {type:"main", title: cur.title||"", heavy: cur.heavy && cur.heavy.length ? cur.heavy : [{name:"",target:"",bench:"",sets:4,reps:"6回"}], reps: cur.reps && cur.reps.length ? cur.reps : [{name:"",target:"",bench:"",sets:3,reps:"15回"}]};
+  render();
+}
+function addExerciseRow(dow, variant){
+  harvestDay(dow);
+  program[dow][variant].push({name:"", target:"", bench:"", sets:3, reps:"10回"});
+  render();
+}
+function removeExerciseRow(dow, variant, idx){
+  harvestDay(dow);
+  program[dow][variant].splice(idx,1);
+  render();
+}
+function saveDay(dow){
+  harvestDay(dow);
+  save("ironlog_program", program);
+  editingDay = null;
+  showToast("週間メニューを保存した");
+  render();
+}
+function resetProgram(){
+  program = JSON.parse(JSON.stringify(DEFAULT_PROGRAM));
+  save("ironlog_program", program);
+  editingDay = null;
+  showToast("初期メニューに戻した");
+  render();
+}
+
+function renderExRow(ex, dow, variant, idx){
+  const repsTarget = parseRepsTarget(ex.reps);
+  const weightRange = parseTargetKgRange(ex.target);
+  const lastLog = getLastLogForExerciseName(ex.name);
+  const meta = getExMeta(ex.name);
+  let suggestion = "";
+  if (repsTarget && weightRange && lastLog && lastLog.reps >= repsTarget && lastLog.weight >= weightRange.max) {
+    const nextW = lastLog.weight + 2;
+    suggestion = `
+      <div class="suggest-line">
+        ⬆️ 前回${lastLog.weight}kg×${lastLog.reps}回 達成 → 次は${nextW}kg目安
+        <button class="apply-btn" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW})">反映</button>
+      </div>
+    `;
+  }
+  let metaLine = "";
+  if (meta && (meta.primary || meta.secondary)) {
+    const parts = [`🎯 ${esc(meta.primary||"")}`];
+    if (meta.secondary) parts.push(`副:${esc(meta.secondary)}`);
+    metaLine = `<div class="muscle-line">${parts.join(" ・ ")}${ex.bench ? " ・ 🪑 "+esc(ex.bench) : ""}</div>`;
+  } else if (ex.bench) {
+    metaLine = `<div class="bench-line">🪑 ベンチ: ${esc(ex.bench)}</div>`;
+  }
+  return `
+    <div class="ex-row-wrap">
+      <button class="ex-row" onclick="pickExerciseByName('${esc(ex.name).replace(/'/g,"\\'")}')">
+        <div class="ex-row-top">
+          <span>${esc(ex.name)}</span>
+          <span class="target">${esc(ex.target)}<br>${ex.sets}セット × ${esc(ex.reps)}</span>
+        </div>
+        ${metaLine}
+        ${suggestion}
+      </button>
+      <button class="video-btn" onclick="event.stopPropagation();openVideoSearch('${esc(ex.name).replace(/'/g,"\\'")}')">▶</button>
+    </div>
+  `;
+}
+
+function renderTodayCard(){
+  const dow = new Date().getDay();
+  const p = program[dow] || {type:"rest"};
+  let body = "";
+  if (p.type === "main") {
+    const variant = window.__weekType === "heavy" ? "heavy" : "reps";
+    const list = p[variant];
+    body = `
+      <div class="today-head">
+        <span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span>
+        <button class="toggle-btn" onclick="toggleWeekType()">🔁 ${window.__weekType==="heavy"?"重量週":"回数週"}</button>
+      </div>
+      <p class="today-title">${esc(p.title)}</p>
+      ${list.map((ex,idx) => renderExRow(ex, dow, variant, idx)).join("")}
+      <p class="hint">種目名タップで入力欄にセット、▶で動画検索</p>
+    `;
+  } else if (p.type === "light") {
+    body = `
+      <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span></div>
+      <p class="today-title">${esc(p.title)}</p>
+      ${(p.exercises||[]).map((ex,idx) => renderExRow(ex, dow, "exercises", idx)).join("")}
+      <p class="hint">種目名タップで入力欄にセット、▶で動画検索</p>
+    `;
+  } else {
+    body = `
+      <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span></div>
+      <div class="rest-row">🌙 休養日。無理せずゆっくりで。</div>
+    `;
+  }
+  return `<div class="today-card">${body}</div>`;
+}
+
+function renderLogTab(){
+  const todayNames = programExercisesForDate(form.date);
+  let listExercises = exercises;
+  let fallbackNote = "";
+  if (logFilterMode === "today") {
+    const matched = todayNames.map(n => exercises.find(e=>e.name===n)).filter(Boolean);
+    if (matched.length > 0) {
+      listExercises = matched;
+    } else {
+      listExercises = exercises;
+      fallbackNote = todayNames.length === 0 ? "休養日なので全種目から表示中" : "この日の種目がリストに見つからないので全種目から表示中";
+    }
+  }
+  if (!listExercises.find(e => e.id === selectedExId)) {
+    selectedExId = listExercises[0] ? listExercises[0].id : null;
+  }
+  const opts = listExercises.map(e => `<option value="${e.id}" ${e.id===selectedExId?"selected":""}>${esc(e.name)}</option>`).join("");
+  const todaysLogs = logs.filter(l => l.date === form.date).sort((a,b)=> a.id < b.id ? 1 : -1);
+  const nameFor = id => (exercises.find(e=>e.id===id)||{}).name || "?";
+  return `
+    <div class="memo-card">
+      <div class="memo-head" onclick="toggleMemo()">
+        <span class="eyebrow">📖 重量を上げる目安</span>
+        <span class="day-toggle">${showMemo ? "閉じる ▲" : "開く ▼"}</span>
+      </div>
+      ${showMemo ? `
+        <div class="memo-body">
+          <b>回数週(15回目標)</b>: 全セット15回に余裕(あと2〜3回いけそう)で届いたら次回+2kg。ギリギリならもう1回同じ重量で様子見。<br><br>
+          <b>重量週(6回目標)</b>: 全セット6回に余裕で届いたら次回+2kg。フォームが崩れる手前が上限の目安。<br><br>
+          <b>片手/片脚種目</b>: 弱い方の側を基準に判断する。<br><br>
+          <b>自重種目(ローラー・プランク等)</b>: 重量じゃなく回数・時間・可動域(ひざコロ→立ちコロ等)で伸ばす。<br><br>
+          達成条件を満たすとメニューの種目に⬆️マークで提案が出るから、それを見て判断してOK。
+        </div>
+      ` : ""}
+    </div>
+    ${renderTodayCard()}
+    <div class="card">
+      <div class="field">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <label class="field-label" style="margin-bottom:0;">種目</label>
+          <button class="toggle-btn" onclick="toggleLogFilter()">${logFilterMode==="today" ? "📅 その日の種目" : "📚 全種目"}</button>
+        </div>
+        <select onchange="onSelectExercise(this.value)">${opts}</select>
+        ${fallbackNote ? `<p class="hint">${fallbackNote}</p>` : ""}
+      </div>
+      <div class="field">
+        <label class="field-label">日付</label>
+        <input id="inDate" type="date" value="${form.date}" onchange="onDateChange(this.value)">
+      </div>
+      <div class="grid3">
+        <div class="field"><label class="field-label">重量(kg)</label><input id="inWeight" type="number" inputmode="decimal" placeholder="15"></div>
+        <div class="field"><label class="field-label">回数(秒)</label><input id="inReps" type="number" inputmode="numeric" placeholder="6"></div>
+        <div class="field"><label class="field-label">セット</label><input id="inSets" type="number" inputmode="numeric" placeholder="4"></div>
+      </div>
+      <p class="hint">プランク・ローラーなど時間/回数種目は「回数」欄に入れて重量は0でOK</p>
+      <button class="btn-primary" onclick="addLog()">＋ 記録する</button>
+    </div>
+    <p class="section-label">${form.date} の記録</p>
+    ${todaysLogs.length===0 ? '<p class="empty">まだこの日の記録はなし</p>' : todaysLogs.map(l => `
+      <div class="log-item">
+        <div>
+          <p class="name">${esc(nameFor(l.exerciseId))}</p>
+          <p class="stat">${l.weight}kg × ${l.reps}回 × ${l.sets}セット</p>
+        </div>
+        <button class="del-btn" onclick="deleteLog('${l.id}')">✕</button>
+      </div>
+    `).join("")}
+  `;
+}
+
+function renderExerciseEditRows(dow, variant, list){
+  return (list||[]).map((ex, idx) => `
+    <div class="ex-edit-row">
+      <div class="ex-edit-top">
+        <input id="ex-${dow}-${variant}-${idx}-name" value="${esc(ex.name||"")}" placeholder="種目名">
+        <button class="del-btn" onclick="removeExerciseRow(${dow},'${variant}',${idx})">✕</button>
+      </div>
+      <div class="field"><input id="ex-${dow}-${variant}-${idx}-target" value="${esc(ex.target||"")}" placeholder="目安重量(例: 片手10〜12kg)"></div>
+      <div class="field"><input id="ex-${dow}-${variant}-${idx}-bench" value="${esc(ex.bench||"")}" placeholder="ベンチ角度(任意, 例: フラット0度)"></div>
+      <div class="grid2">
+        <input id="ex-${dow}-${variant}-${idx}-sets" type="number" value="${ex.sets||3}" placeholder="セット">
+        <input id="ex-${dow}-${variant}-${idx}-reps" value="${esc(ex.reps||"")}" placeholder="回数/秒">
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDayEditForm(dow, p){
+  const typeSelect = `
+    <div class="field" style="margin-top:12px;">
+      <label class="field-label">この曜日の種類</label>
+      <select onchange="setDayType(${dow}, this.value)">
+        <option value="rest" ${p.type==="rest"?"selected":""}>休養日</option>
+        <option value="light" ${p.type==="light"?"selected":""}>軽めトレーニング(固定メニュー)</option>
+        <option value="main" ${p.type==="main"?"selected":""}>メイン(重量週/回数週で切替)</option>
+      </select>
+    </div>
+  `;
+  if (p.type === "rest") return typeSelect + `<button class="btn-primary" onclick="saveDay(${dow})">保存</button>`;
+  if (p.type === "light") {
+    return typeSelect + `
+      <div class="field"><label class="field-label">タイトル</label><input id="title-${dow}" value="${esc(p.title||"")}"></div>
+      ${renderExerciseEditRows(dow, "exercises", p.exercises)}
+      <button class="video-btn" style="width:100%;" onclick="addExerciseRow(${dow},'exercises')">＋ 種目を追加</button>
+      <button class="btn-primary" onclick="saveDay(${dow})">保存</button>
+    `;
+  }
+  return typeSelect + `
+    <div class="field"><label class="field-label">タイトル</label><input id="title-${dow}" value="${esc(p.title||"")}"></div>
+    <p class="subhead">🔴 重量週</p>
+    ${renderExerciseEditRows(dow, "heavy", p.heavy)}
+    <button class="video-btn" style="width:100%;" onclick="addExerciseRow(${dow},'heavy')">＋ 重量週に追加</button>
+    <p class="subhead">🟢 回数週</p>
+    ${renderExerciseEditRows(dow, "reps", p.reps)}
+    <button class="video-btn" style="width:100%;" onclick="addExerciseRow(${dow},'reps')">＋ 回数週に追加</button>
+    <button class="btn-primary" onclick="saveDay(${dow})">保存</button>
+  `;
+}
+
+function renderDayBlock(dow){
+  const p = program[dow] || {type:"rest"};
+  const isOpen = editingDay === dow;
+  const typeLabel = p.type==="rest" ? "休養" : p.type==="light" ? "軽め(固定)" : "メイン";
+  let summary = "";
+  if (p.type === "light") summary = (p.exercises||[]).map(e=>e.name).filter(Boolean).join("・");
+  else if (p.type === "main") summary = (p.heavy||[]).map(e=>e.name).filter(Boolean).join("・");
+  return `
+    <div class="card" style="margin-bottom:10px;">
+      <div class="day-head" onclick="toggleEditDay(${dow})">
+        <div>
+          <span class="day-name">${WEEKDAY_JP[dow]}曜</span>
+          <span class="day-type-badge">${typeLabel}</span>
+          ${p.title ? `<div class="day-summary" style="color:var(--text);">${esc(p.title)}</div>` : ""}
+          ${!isOpen && summary ? `<div class="day-summary">${esc(summary)}</div>` : ""}
+        </div>
+        <span class="day-toggle">${isOpen ? "閉じる ▲" : "編集 ▼"}</span>
+      </div>
+      ${isOpen ? renderDayEditForm(dow, p) : ""}
+    </div>
+  `;
+}
+
+function renderWeekTab(){
+  return `
+    <p class="section-label">曜日をタップで開閉。種類の変更や種目の追加・削除、重量/ベンチ角度/セット/回数の編集ができる</p>
+    ${WEEK_ORDER.map(dow => renderDayBlock(dow)).join("")}
+    <button class="video-btn" style="width:100%; margin-top:4px; margin-bottom:20px;" onclick="if(confirm('週間メニューを初期状態に戻す?')) resetProgram()">初期メニューに戻す</button>
+  `;
+}
+
+function renderExercisesTab(){
+  return `
+    <div class="card">
+      <label class="field-label">新しい種目を追加</label>
+      <div class="add-row">
+        <input id="newExInput" placeholder="例: フレンチプレス" onkeydown="if(event.key==='Enter') addExercise()">
+        <button onclick="addExercise()">＋</button>
+      </div>
+    </div>
+    ${exercises.map(ex => `
+      <div class="log-item" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="name">${esc(ex.name)}</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button class="del-btn" onclick="openVideoSearch('${esc(ex.name).replace(/'/g,"\\'")}')">▶</button>
+            <button class="del-btn" onclick="deleteExercise('${ex.id}')">✕</button>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:8px;">
+          <input value="${esc(ex.primary||"")}" placeholder="メイン部位" onchange="updateExerciseMeta('${ex.id}','primary',this.value)">
+          <input value="${esc(ex.secondary||"")}" placeholder="サブ部位" onchange="updateExerciseMeta('${ex.id}','secondary',this.value)">
+        </div>
+      </div>
+    `).join("")}
+    <div class="card" style="margin-top:16px;">
+      <label class="field-label">データのバックアップ</label>
+      <p class="hint" style="margin-top:0;">種目・記録・週間メニューを全部まとめてファイルに書き出し/読み込みできる。ファイルを移す時や機種変の時に使う</p>
+      <div class="backup-row">
+        <button class="backup-btn" onclick="exportData()">⬇️ 書き出す</button>
+        <button class="backup-btn" onclick="triggerImport()">⬆️ 読み込む</button>
+      </div>
+      <input type="file" id="importFileInput" accept="application/json" style="display:none;" onchange="importData(this)">
+    </div>
+  `;
+}
+
+function renderChartTab(){
+  const opts = exercises.map(e => `<option value="${e.id}" ${e.id===selectedExId?"selected":""}>${esc(e.name)}</option>`).join("");
+  const data = logs.filter(l=>l.exerciseId===selectedExId).sort((a,b)=>a.date.localeCompare(b.date));
+  const exName = (exercises.find(e=>e.id===selectedExId)||{}).name || "";
+  const latest = data[data.length-1];
+  let html = `<div class="field"><label class="field-label">種目を選択</label><select onchange="onSelectExercise(this.value)">${opts}</select></div>`;
+  if (latest) html += `<div class="card"><p class="section-label" style="margin:0;">直近の ${esc(exName)}</p><p class="pr-num">${latest.weight}<span> kg</span></p></div>`;
+  if (data.length === 0) {
+    html += `<p class="empty">まだ記録がない。「記録」タブから入力してみて。</p>`;
+  } else {
+    html += `
+      <div class="card"><p class="section-label" style="margin:0 0 8px;">重量の推移(kg)</p><div class="chart-wrap" id="weightChart"></div></div>
+      <div class="card"><p class="section-label" style="margin:0 0 8px;">総ボリューム(重量×回数×セット)</p><div class="chart-wrap" id="volumeChart"></div></div>
+    `;
+  }
+  return html;
+}
+
+function buildLineSVG(labels, seriesList){
+  const width=340, height=180, padL=32, padR=10, padT=18, padB=26;
+  const plotW = width-padL-padR, plotH = height-padT-padB;
+  const allVals = seriesList.flatMap(s=>s.data).filter(v=>v!==null && v!==undefined);
+  if (allVals.length===0) return '<p class="empty" style="padding:16px 0;">データなし</p>';
+  let minV = Math.min(...allVals), maxV = Math.max(...allVals);
+  if (minV===maxV) { minV -= 2; maxV += 2; } else { const pad=(maxV-minV)*0.2; minV-=pad; maxV+=pad; }
+  const n = labels.length;
+  const xPos = i => n<=1 ? padL+plotW/2 : padL + (i/(n-1))*plotW;
+  const yPos = v => padT + (1-(v-minV)/(maxV-minV))*plotH;
+  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:180px; display:block;">`;
+  for (let g=0; g<=2; g++){
+    const gy = padT + (g/2)*plotH;
+    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${width-padR}" y2="${gy.toFixed(1)}" stroke="#42392F" stroke-width="1"/>`;
+  }
+  seriesList.forEach(s => {
+    let segs = [], current = [];
+    s.data.forEach((v,i) => {
+      if (v===null || v===undefined) { if (current.length) { segs.push(current); current=[]; } }
+      else current.push([xPos(i), yPos(v)]);
+    });
+    if (current.length) segs.push(current);
+    segs.forEach(seg => {
+      const d = seg.map((p,idx)=> (idx===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+      svg += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2"/>`;
+    });
+    s.data.forEach((v,i) => {
+      if (v===null || v===undefined) return;
+      const cx=xPos(i), cy=yPos(v);
+      svg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3" fill="${s.color}"/>`;
+      svg += `<text x="${cx.toFixed(1)}" y="${(cy-6).toFixed(1)}" font-size="8" fill="${s.color}" text-anchor="middle">${v}</text>`;
+    });
+  });
+  const step = Math.max(1, Math.ceil(n/6));
+  labels.forEach((lab,i) => {
+    if (i % step !== 0 && i !== n-1) return;
+    svg += `<text x="${xPos(i).toFixed(1)}" y="${height-8}" font-size="9" fill="#A79C89" text-anchor="middle">${esc(lab)}</text>`;
+  });
+  svg += `</svg>`;
+  return svg;
+}
+function buildBarSVG(labels, data, color){
+  const width=340, height=180, padL=26, padR=10, padT=20, padB=26;
+  const plotW = width-padL-padR, plotH = height-padT-padB;
+  const maxV = Math.max(...data, 1) * 1.2;
+  const n = data.length;
+  const bw = Math.min(28, plotW/n*0.6);
+  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:180px; display:block;">`;
+  for (let g=0; g<=2; g++){
+    const gy = padT + (g/2)*plotH;
+    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${width-padR}" y2="${gy.toFixed(1)}" stroke="#42392F" stroke-width="1"/>`;
+  }
+  data.forEach((v,i) => {
+    const cx = padL + (i+0.5)/n*plotW;
+    const barH = (v/maxV)*plotH;
+    const x = cx-bw/2, y = padT+plotH-barH;
+    svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="${color}"/>`;
+    svg += `<text x="${cx.toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="8" fill="${color}" text-anchor="middle">${v}</text>`;
+  });
+  const step = Math.max(1, Math.ceil(n/6));
+  labels.forEach((lab,i) => {
+    if (i % step !== 0 && i !== n-1) return;
+    const cx = padL + (i+0.5)/n*plotW;
+    svg += `<text x="${cx.toFixed(1)}" y="${height-8}" font-size="9" fill="#A79C89" text-anchor="middle">${esc(lab)}</text>`;
+  });
+  svg += `</svg>`;
+  return svg;
+}
+
+function drawCharts(){
+  const dataAll = logs.filter(l=>l.exerciseId===selectedExId);
+  if (dataAll.length === 0) return;
+  const byDate = {};
+  dataAll.forEach(l => { byDate[l.date] = l; });
+  const dates = Object.keys(byDate).sort();
+  const labels = dates.map(d => d.slice(5));
+  const heavyWeights = [];
+  const repsWeights = [];
+  const volumes = [];
+  dates.forEach(d => {
+    const l = byDate[d];
+    const wt = getWeekTypeForDate(d);
+    heavyWeights.push(wt === "heavy" ? l.weight : null);
+    repsWeights.push(wt === "reps" ? l.weight : null);
+    volumes.push(l.weight * l.reps * l.sets);
+  });
+  const wEl = document.getElementById("weightChart");
+  if (wEl) {
+    wEl.innerHTML = buildLineSVG(labels, [
+      {data: heavyWeights, color: "#C1442A"},
+      {data: repsWeights, color: "#B9905A"},
+    ]) + `<div style="display:flex; gap:14px; margin-top:4px; font-size:11px; color:var(--text-muted);"><span>🔴 重量週</span><span>🟡 回数週</span></div>`;
+  }
+  const vEl = document.getElementById("volumeChart");
+  if (vEl) {
+    vEl.innerHTML = buildBarSVG(labels, volumes, "#B9905A");
+  }
+}
+
+function render(){
+  const app = document.getElementById("app");
+  if (tab === "log") app.innerHTML = renderLogTab();
+  else if (tab === "week") app.innerHTML = renderWeekTab();
+  else if (tab === "exercises") app.innerHTML = renderExercisesTab();
+  else if (tab === "chart") { app.innerHTML = renderChartTab(); drawCharts(); }
+  document.querySelectorAll("nav.tabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+}
+render();
+</script>
+</body>
+</html>
