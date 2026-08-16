@@ -71,6 +71,9 @@
   .memo-body { font-size: 12.5px; color: var(--text-muted); line-height: 1.7; margin-top: 10px; }
   .memo-body b { color: var(--text); }
   .muscle-line { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .sw-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .sw-display { font-family: ui-monospace, monospace; font-size: 22px; font-weight: 800; color: var(--accent); min-width: 62px; }
+  .sw-btn { background: var(--surface-alt); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 12px; font-size: 12.5px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -193,6 +196,10 @@ let selectedExId = exercises[0] ? exercises[0].id : null;
 let form = { date: todayStr() };
 let logFilterMode = "today";
 let showMemo = false;
+let swRunning = false;
+let swStartTime = 0;
+let swElapsed = 0;
+let swIntervalId = null;
 let editingDay = null;
 
 (function initWeekType(){
@@ -264,6 +271,43 @@ function onSelectExercise(id){ selectedExId = id; render(); }
 function onDateChange(v){ form.date = v; render(); }
 function toggleLogFilter(){ logFilterMode = logFilterMode === "today" ? "all" : "today"; render(); }
 function toggleMemo(){ showMemo = !showMemo; render(); }
+
+function formatSW(sec){
+  const m = Math.floor(sec/60).toString().padStart(2,"0");
+  const s = (sec%60).toString().padStart(2,"0");
+  return `${m}:${s}`;
+}
+function swTick(){
+  swElapsed = Math.floor((Date.now() - swStartTime)/1000);
+  const disp = document.getElementById("swDisplay");
+  if (disp) disp.textContent = formatSW(swElapsed);
+  else { clearInterval(swIntervalId); }
+}
+function toggleStopwatch(){
+  const btn = document.getElementById("swToggleBtn");
+  if (!swRunning) {
+    swRunning = true;
+    swStartTime = Date.now() - swElapsed*1000;
+    swIntervalId = setInterval(swTick, 250);
+    if (btn) btn.textContent = "⏹ 停止";
+  } else {
+    swRunning = false;
+    clearInterval(swIntervalId);
+    if (btn) btn.textContent = "▶ 開始";
+    const repsInput = document.getElementById("inReps");
+    if (repsInput) repsInput.value = swElapsed;
+    showToast("計測結果を回数欄に入れた");
+  }
+}
+function resetStopwatch(){
+  swRunning = false;
+  clearInterval(swIntervalId);
+  swElapsed = 0;
+  const disp = document.getElementById("swDisplay");
+  if (disp) disp.textContent = "00:00";
+  const btn = document.getElementById("swToggleBtn");
+  if (btn) btn.textContent = "▶ 開始";
+}
 
 function parseTargetKgRange(target){
   if (!target) return null;
@@ -546,7 +590,12 @@ function renderLogTab(){
         <div class="field"><label class="field-label">回数(秒)</label><input id="inReps" type="number" inputmode="numeric" placeholder="6"></div>
         <div class="field"><label class="field-label">セット</label><input id="inSets" type="number" inputmode="numeric" placeholder="4"></div>
       </div>
-      <p class="hint">プランク・ローラーなど時間/回数種目は「回数」欄に入れて重量は0でOK</p>
+      <div class="sw-row">
+        <span id="swDisplay" class="sw-display">${formatSW(swElapsed)}</span>
+        <button id="swToggleBtn" class="sw-btn" onclick="toggleStopwatch()">${swRunning ? "⏹ 停止" : "▶ 開始"}</button>
+        <button class="sw-btn" onclick="resetStopwatch()">↺ リセット</button>
+      </div>
+      <p class="hint">プランク・ローラーなど時間/回数種目は、上のストップウォッチで計測→停止すると回数欄に秒数が自動で入る(重量は0でOK)</p>
       <button class="btn-primary" onclick="addLog()">＋ 記録する</button>
     </div>
     <p class="section-label">${form.date} の記録</p>
