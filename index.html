@@ -166,7 +166,7 @@ const DEFAULT_EXERCISES_META = [
 ];
 
 function uid(p){ return p+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,7); }
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+function todayStr(){ return localDateStr(new Date()); }
 function mondayOf(d){
   const date = new Date(d);
   const day = date.getDay();
@@ -174,7 +174,8 @@ function mondayOf(d){
   date.setHours(0,0,0,0);
   return date;
 }
-function weekKeyFor(d){ return mondayOf(d).toISOString().slice(0,10); }
+function localDateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function weekKeyFor(d){ return localDateStr(mondayOf(d)); }
 function defaultWeekTypeFor(d){
   const REF = new Date("2026-08-10T00:00:00");
   const diffWeeks = Math.round((mondayOf(d)-REF)/(7*86400000));
@@ -191,6 +192,32 @@ function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&l
 let exercises = load("ironlog_exercises", DEFAULT_EXERCISES_META.map((m,i)=>({id:"ex_"+i, name:m.name, primary:m.primary, secondary:m.secondary})));
 let logs = load("ironlog_logs", []);
 let program = load("ironlog_program", DEFAULT_PROGRAM);
+
+function collectProgramExerciseNames(){
+  const names = [];
+  Object.values(program).forEach(p => {
+    if (!p) return;
+    if (p.type === "light") (p.exercises||[]).forEach(e=>{ if (e.name) names.push(e.name); });
+    if (p.type === "main") {
+      (p.heavy||[]).forEach(e=>{ if (e.name) names.push(e.name); });
+      (p.reps||[]).forEach(e=>{ if (e.name) names.push(e.name); });
+    }
+  });
+  return names;
+}
+function syncExercisesWithProgram(){
+  const names = collectProgramExerciseNames();
+  let changed = false;
+  names.forEach(n => {
+    if (!exercises.find(e=>e.name===n)) {
+      const meta = DEFAULT_EXERCISES_META.find(m=>m.name===n);
+      exercises.push({id: uid("ex"), name:n, primary: meta?meta.primary:"", secondary: meta?meta.secondary:""});
+      changed = true;
+    }
+  });
+  if (changed) save("ironlog_exercises", exercises);
+}
+syncExercisesWithProgram();
 let tab = "log";
 let selectedExId = exercises[0] ? exercises[0].id : null;
 let form = { date: todayStr() };
@@ -454,6 +481,7 @@ function removeExerciseRow(dow, variant, idx){
 function saveDay(dow){
   harvestDay(dow);
   save("ironlog_program", program);
+  syncExercisesWithProgram();
   editingDay = null;
   showToast("週間メニューを保存した");
   render();
@@ -461,6 +489,7 @@ function saveDay(dow){
 function resetProgram(){
   program = JSON.parse(JSON.stringify(DEFAULT_PROGRAM));
   save("ironlog_program", program);
+  syncExercisesWithProgram();
   editingDay = null;
   showToast("初期メニューに戻した");
   render();
@@ -576,10 +605,10 @@ function renderLogTab(){
       <div class="field">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
           <label class="field-label" style="margin-bottom:0;">種目</label>
-          <button class="toggle-btn" onclick="toggleLogFilter()">${logFilterMode==="today" ? "📅 その日の種目" : "📚 全種目"}</button>
+          ${fallbackNote ? "" : `<button class="toggle-btn" onclick="toggleLogFilter()">${logFilterMode==="today" ? "📅 その日の種目" : "📚 全種目"}</button>`}
         </div>
         <select onchange="onSelectExercise(this.value)">${opts}</select>
-        ${fallbackNote ? `<p class="hint">${fallbackNote}</p>` : ""}
+        ${fallbackNote ? `<p class="hint">📚 ${fallbackNote}(この日は絞り込み対象の種目がないため)</p>` : ""}
       </div>
       <div class="field">
         <label class="field-label">日付</label>
