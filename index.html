@@ -74,6 +74,9 @@
   .sw-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
   .sw-display { font-family: ui-monospace, monospace; font-size: 22px; font-weight: 800; color: var(--accent); min-width: 62px; }
   .sw-btn { background: var(--surface-alt); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 12px; font-size: 12.5px; cursor: pointer; }
+  .side-row { display: flex; gap: 8px; }
+  .side-btn { flex: 1; background: var(--surface-alt); border: 1px solid var(--border); color: var(--text-muted); border-radius: 10px; padding: 9px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .side-btn.side-active { background: var(--accent); border-color: var(--accent); color: #fff; }
 </style>
 </head>
 <body>
@@ -146,23 +149,23 @@ const DEFAULT_PROGRAM = {
 };
 
 const DEFAULT_EXERCISES_META = [
-  {name:"ゴブレットスクワット", primary:"大腿四頭筋", secondary:"臀筋・体幹"},
-  {name:"ダンベルベンチプレス", primary:"大胸筋", secondary:"上腕三頭筋・三角筋前部"},
-  {name:"シーテッドショルダープレス", primary:"三角筋", secondary:"上腕三頭筋"},
-  {name:"ルーマニアンデッドリフト", primary:"ハムストリングス", secondary:"臀筋・脊柱起立筋"},
-  {name:"ベントオーバーロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋"},
-  {name:"ブルガリアンスプリットスクワット", primary:"大腿四頭筋", secondary:"臀筋"},
-  {name:"インクラインダンベルプレス", primary:"大胸筋上部", secondary:"三角筋前部・上腕三頭筋"},
-  {name:"ラテラルレイズ", primary:"三角筋中部", secondary:""},
-  {name:"シングルアームロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋"},
-  {name:"アームカール", primary:"上腕二頭筋", secondary:"前腕"},
-  {name:"ヒップリフト", primary:"臀筋", secondary:"ハムストリングス"},
-  {name:"プランク", primary:"腹直筋・体幹", secondary:""},
-  {name:"サイドプランク", primary:"腹斜筋", secondary:""},
-  {name:"マウンテンクライマー", primary:"体幹", secondary:"心肺(有酸素)"},
-  {name:"腹筋ローラー", primary:"腹直筋", secondary:"広背筋・肩"},
-  {name:"ダンベルトライセップスエクステンション", primary:"上腕三頭筋", secondary:""},
-  {name:"ベントオーバーリアレイズ", primary:"三角筋後部", secondary:"僧帽筋"},
+  {name:"ゴブレットスクワット", primary:"大腿四頭筋", secondary:"臀筋・体幹", unilateral:false},
+  {name:"ダンベルベンチプレス", primary:"大胸筋", secondary:"上腕三頭筋・三角筋前部", unilateral:false},
+  {name:"シーテッドショルダープレス", primary:"三角筋", secondary:"上腕三頭筋", unilateral:false},
+  {name:"ルーマニアンデッドリフト", primary:"ハムストリングス", secondary:"臀筋・脊柱起立筋", unilateral:false},
+  {name:"ベントオーバーロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:false},
+  {name:"ブルガリアンスプリットスクワット", primary:"大腿四頭筋", secondary:"臀筋", unilateral:true},
+  {name:"インクラインダンベルプレス", primary:"大胸筋上部", secondary:"三角筋前部・上腕三頭筋", unilateral:false},
+  {name:"ラテラルレイズ", primary:"三角筋中部", secondary:"", unilateral:false},
+  {name:"シングルアームロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:true},
+  {name:"アームカール", primary:"上腕二頭筋", secondary:"前腕", unilateral:false},
+  {name:"ヒップリフト", primary:"臀筋", secondary:"ハムストリングス", unilateral:false},
+  {name:"プランク", primary:"腹直筋・体幹", secondary:"", unilateral:false},
+  {name:"サイドプランク", primary:"腹斜筋", secondary:"", unilateral:true},
+  {name:"マウンテンクライマー", primary:"体幹", secondary:"心肺(有酸素)", unilateral:false},
+  {name:"腹筋ローラー", primary:"腹直筋", secondary:"広背筋・肩", unilateral:false},
+  {name:"ダンベルトライセップスエクステンション", primary:"上腕三頭筋", secondary:"", unilateral:false},
+  {name:"ベントオーバーリアレイズ", primary:"三角筋後部", secondary:"僧帽筋", unilateral:false},
 ];
 
 function uid(p){ return p+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,7); }
@@ -189,7 +192,7 @@ function save(key, val){
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
-let exercises = load("ironlog_exercises", DEFAULT_EXERCISES_META.map((m,i)=>({id:"ex_"+i, name:m.name, primary:m.primary, secondary:m.secondary})));
+let exercises = load("ironlog_exercises", DEFAULT_EXERCISES_META.map((m,i)=>({id:"ex_"+i, name:m.name, primary:m.primary, secondary:m.secondary, unilateral:!!m.unilateral})));
 let logs = load("ironlog_logs", []);
 let program = load("ironlog_program", DEFAULT_PROGRAM);
 
@@ -211,7 +214,7 @@ function syncExercisesWithProgram(){
   names.forEach(n => {
     if (!exercises.find(e=>e.name===n)) {
       const meta = DEFAULT_EXERCISES_META.find(m=>m.name===n);
-      exercises.push({id: uid("ex"), name:n, primary: meta?meta.primary:"", secondary: meta?meta.secondary:""});
+      exercises.push({id: uid("ex"), name:n, primary: meta?meta.primary:"", secondary: meta?meta.secondary:"", unilateral: meta?!!meta.unilateral:false});
       changed = true;
     }
   });
@@ -222,6 +225,7 @@ let tab = "log";
 let selectedExId = exercises[0] ? exercises[0].id : null;
 let form = { date: todayStr() };
 let logFilterMode = "today";
+let logSide = "L";
 let showMemo = false;
 let swRunning = false;
 let swStartTime = 0;
@@ -264,7 +268,7 @@ function pickExerciseByName(name){
 function addExercise(){
   const val = document.getElementById("newExInput").value.trim();
   if(!val) return;
-  exercises = [...exercises, {id: uid("ex"), name: val, primary:"", secondary:""}];
+  exercises = [...exercises, {id: uid("ex"), name: val, primary:"", secondary:"", unilateral:false}];
   save("ironlog_exercises", exercises);
   render();
 }
@@ -280,6 +284,13 @@ function updateExerciseMeta(id, field, value){
   ex[field] = value;
   save("ironlog_exercises", exercises);
 }
+function toggleUnilateral(id, checked){
+  const ex = exercises.find(e=>e.id===id);
+  if (!ex) return;
+  ex.unilateral = checked;
+  save("ironlog_exercises", exercises);
+  render();
+}
 function getExMeta(name){ return exercises.find(e=>e.name===name); }
 function addLog(){
   const w = document.getElementById("inWeight").value;
@@ -287,16 +298,25 @@ function addLog(){
   const s = document.getElementById("inSets").value;
   const d = document.getElementById("inDate").value;
   if(!selectedExId || w==="" || r==="" || s==="") return;
-  logs = [...logs, {id: uid("log"), exerciseId: selectedExId, date: d, weight: parseFloat(w), reps: parseInt(r,10), sets: parseInt(s,10)}];
+  const selectedEx = exercises.find(e=>e.id===selectedExId);
+  const side = (selectedEx && selectedEx.unilateral) ? logSide : null;
+  logs = [...logs, {id: uid("log"), exerciseId: selectedExId, date: d, weight: parseFloat(w), reps: parseInt(r,10), sets: parseInt(s,10), side}];
   save("ironlog_logs", logs);
   form = {date: d};
-  showToast("記録した");
+  showToast(side ? `記録した(${side==="L"?"左":"右"})` : "記録した");
   render();
 }
 function deleteLog(id){ logs = logs.filter(l=>l.id!==id); save("ironlog_logs", logs); render(); }
 function onSelectExercise(id){ selectedExId = id; render(); }
 function onDateChange(v){ form.date = v; render(); }
 function toggleLogFilter(){ logFilterMode = logFilterMode === "today" ? "all" : "today"; render(); }
+function setLogSide(side){
+  logSide = side;
+  const lBtn = document.getElementById("sideBtnL");
+  const rBtn = document.getElementById("sideBtnR");
+  if (lBtn) lBtn.classList.toggle("side-active", side==="L");
+  if (rBtn) rBtn.classList.toggle("side-active", side==="R");
+}
 function toggleMemo(){ showMemo = !showMemo; render(); }
 
 function formatSW(sec){
@@ -581,6 +601,7 @@ function renderLogTab(){
   if (!listExercises.find(e => e.id === selectedExId)) {
     selectedExId = listExercises[0] ? listExercises[0].id : null;
   }
+  const selectedEx = exercises.find(e=>e.id===selectedExId);
   const opts = listExercises.map(e => `<option value="${e.id}" ${e.id===selectedExId?"selected":""}>${esc(e.name)}</option>`).join("");
   const todaysLogs = logs.filter(l => l.date === form.date).sort((a,b)=> a.id < b.id ? 1 : -1);
   const nameFor = id => (exercises.find(e=>e.id===id)||{}).name || "?";
@@ -610,6 +631,15 @@ function renderLogTab(){
         <select onchange="onSelectExercise(this.value)">${opts}</select>
         ${fallbackNote ? `<p class="hint">📚 ${fallbackNote}(この日は絞り込み対象の種目がないため)</p>` : ""}
       </div>
+      ${selectedEx && selectedEx.unilateral ? `
+        <div class="field">
+          <label class="field-label">左右</label>
+          <div class="side-row">
+            <button id="sideBtnL" class="side-btn ${logSide==="L"?"side-active":""}" onclick="setLogSide('L')">左</button>
+            <button id="sideBtnR" class="side-btn ${logSide==="R"?"side-active":""}" onclick="setLogSide('R')">右</button>
+          </div>
+        </div>
+      ` : ""}
       <div class="field">
         <label class="field-label">日付</label>
         <input id="inDate" type="date" value="${form.date}" onchange="onDateChange(this.value)">
@@ -631,7 +661,7 @@ function renderLogTab(){
     ${todaysLogs.length===0 ? '<p class="empty">まだこの日の記録はなし</p>' : todaysLogs.map(l => `
       <div class="log-item">
         <div>
-          <p class="name">${esc(nameFor(l.exerciseId))}</p>
+          <p class="name">${esc(nameFor(l.exerciseId))}${l.side ? ` <span style="color:var(--accent2); font-size:11px;">(${l.side==="L"?"左":"右"})</span>` : ""}</p>
           <p class="stat">${l.weight}kg × ${l.reps}回 × ${l.sets}セット</p>
         </div>
         <button class="del-btn" onclick="deleteLog('${l.id}')">✕</button>
@@ -742,6 +772,10 @@ function renderExercisesTab(){
           <input value="${esc(ex.primary||"")}" placeholder="メイン部位" onchange="updateExerciseMeta('${ex.id}','primary',this.value)">
           <input value="${esc(ex.secondary||"")}" placeholder="サブ部位" onchange="updateExerciseMeta('${ex.id}','secondary',this.value)">
         </div>
+        <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12px; color:var(--text-muted);">
+          <input type="checkbox" style="width:auto;" ${ex.unilateral?"checked":""} onchange="toggleUnilateral('${ex.id}', this.checked)">
+          左右別に記録する(片手・片脚種目)
+        </label>
       </div>
     `).join("")}
     <div class="card" style="margin-top:16px;">
@@ -758,11 +792,11 @@ function renderExercisesTab(){
 
 function renderChartTab(){
   const opts = exercises.map(e => `<option value="${e.id}" ${e.id===selectedExId?"selected":""}>${esc(e.name)}</option>`).join("");
-  const data = logs.filter(l=>l.exerciseId===selectedExId).sort((a,b)=>a.date.localeCompare(b.date));
+  const data = logs.filter(l=>l.exerciseId===selectedExId).sort((a,b)=> a.date===b.date ? (a.id<b.id?-1:1) : a.date.localeCompare(b.date));
   const exName = (exercises.find(e=>e.id===selectedExId)||{}).name || "";
   const latest = data[data.length-1];
   let html = `<div class="field"><label class="field-label">種目を選択</label><select onchange="onSelectExercise(this.value)">${opts}</select></div>`;
-  if (latest) html += `<div class="card"><p class="section-label" style="margin:0;">直近の ${esc(exName)}</p><p class="pr-num">${latest.weight}<span> kg</span></p></div>`;
+  if (latest) html += `<div class="card"><p class="section-label" style="margin:0;">直近の ${esc(exName)}${latest.side ? `(${latest.side==="L"?"左":"右"})` : ""}</p><p class="pr-num">${latest.weight}<span> kg</span></p></div>`;
   if (data.length === 0) {
     html += `<p class="empty">まだ記録がない。「記録」タブから入力してみて。</p>`;
   } else {
@@ -844,28 +878,35 @@ function buildBarSVG(labels, data, color){
 }
 
 function drawCharts(){
+  const ex = exercises.find(e=>e.id===selectedExId);
+  const isUni = !!(ex && ex.unilateral);
   const dataAll = logs.filter(l=>l.exerciseId===selectedExId);
   if (dataAll.length === 0) return;
-  const byDate = {};
-  dataAll.forEach(l => { byDate[l.date] = l; });
-  const dates = Object.keys(byDate).sort();
+  const dates = [...new Set(dataAll.map(l=>l.date))].sort();
   const labels = dates.map(d => d.slice(5));
-  const heavyWeights = [];
-  const repsWeights = [];
-  const volumes = [];
-  dates.forEach(d => {
-    const l = byDate[d];
-    const wt = getWeekTypeForDate(d);
-    heavyWeights.push(wt === "heavy" ? l.weight : null);
-    repsWeights.push(wt === "reps" ? l.weight : null);
-    volumes.push(l.weight * l.reps * l.sets);
-  });
+  const volumes = dates.map(d => dataAll.filter(l=>l.date===d).reduce((sum,l)=> sum + l.weight*l.reps*l.sets, 0));
+
   const wEl = document.getElementById("weightChart");
   if (wEl) {
-    wEl.innerHTML = buildLineSVG(labels, [
-      {data: heavyWeights, color: "#C1442A"},
-      {data: repsWeights, color: "#B9905A"},
-    ]) + `<div style="display:flex; gap:14px; margin-top:4px; font-size:11px; color:var(--text-muted);"><span>🔴 重量週</span><span>🟡 回数週</span></div>`;
+    if (isUni) {
+      const byKey = {};
+      dataAll.forEach(l => { byKey[l.date+"_"+(l.side||"L")] = l; });
+      const leftWeights = dates.map(d => byKey[d+"_L"] ? byKey[d+"_L"].weight : null);
+      const rightWeights = dates.map(d => byKey[d+"_R"] ? byKey[d+"_R"].weight : null);
+      wEl.innerHTML = buildLineSVG(labels, [
+        {data: leftWeights, color: "#C1442A"},
+        {data: rightWeights, color: "#B9905A"},
+      ]) + `<div style="display:flex; gap:14px; margin-top:4px; font-size:11px; color:var(--text-muted);"><span>🔴 左</span><span>🟡 右</span></div>`;
+    } else {
+      const byDate = {};
+      dataAll.forEach(l => { byDate[l.date] = l; });
+      const heavyWeights = dates.map(d => getWeekTypeForDate(d) === "heavy" ? byDate[d].weight : null);
+      const repsWeights = dates.map(d => getWeekTypeForDate(d) === "reps" ? byDate[d].weight : null);
+      wEl.innerHTML = buildLineSVG(labels, [
+        {data: heavyWeights, color: "#C1442A"},
+        {data: repsWeights, color: "#B9905A"},
+      ]) + `<div style="display:flex; gap:14px; margin-top:4px; font-size:11px; color:var(--text-muted);"><span>🔴 重量週</span><span>🟡 回数週</span></div>`;
+    }
   }
   const vEl = document.getElementById("volumeChart");
   if (vEl) {
