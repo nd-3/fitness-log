@@ -26,6 +26,7 @@
   .ex-row-top span:first-child { font-size: 13.5px; }
   .ex-row .target { font-size: 11.5px; color: var(--accent2); font-family: ui-monospace, monospace; white-space: nowrap; margin-left: 8px; text-align: right; line-height: 1.5; }
   .ex-row .bench-line { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .muscle-line { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .video-btn { display: flex; align-items: center; justify-content: center; width: 38px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--accent2); font-size: 14px; cursor: pointer; }
   .hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
   .rest-row { display:flex; align-items:center; gap:8px; color: var(--text-muted); padding: 6px 0; font-size: 13.5px; }
@@ -47,7 +48,7 @@
   .add-row button { background: var(--accent); border: none; color: #fff; border-radius: 10px; padding: 0 14px; font-size: 18px; cursor: pointer; }
   .pr-num { font-size: 30px; font-weight: 800; font-family: ui-monospace, monospace; color: var(--accent); margin: 2px 0 0; }
   .pr-num span { font-size: 15px; color: var(--text-muted); font-weight: 500; }
-  .chart-wrap { position: relative; height: 180px; }
+  .chart-wrap { position: relative; }
   nav.tabbar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 8px 0; }
   nav.tabbar button { background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); font-size: 10.5px; padding: 4px 10px; cursor: pointer; font-family: inherit; }
   nav.tabbar button.active { color: var(--accent); }
@@ -70,13 +71,17 @@
   .memo-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
   .memo-body { font-size: 12.5px; color: var(--text-muted); line-height: 1.7; margin-top: 10px; }
   .memo-body b { color: var(--text); }
-  .muscle-line { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .sw-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
   .sw-display { font-family: ui-monospace, monospace; font-size: 22px; font-weight: 800; color: var(--accent); min-width: 62px; }
   .sw-btn { background: var(--surface-alt); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 12px; font-size: 12.5px; cursor: pointer; }
   .side-row { display: flex; gap: 8px; }
   .side-btn { flex: 1; background: var(--surface-alt); border: 1px solid var(--border); color: var(--text-muted); border-radius: 10px; padding: 9px; font-size: 14px; font-weight: 600; cursor: pointer; }
   .side-btn.side-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .period-btn { background: var(--surface-alt); border: 1px solid var(--border); color: var(--text-muted); border-radius: 8px; padding: 5px 9px; font-size: 11px; cursor: pointer; }
+  .period-btn.period-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  @keyframes popCelebrate { 0%{opacity:0; transform:scale(0.6) translateY(4px);} 40%{opacity:1; transform:scale(1.12);} 100%{opacity:1; transform:scale(1);} }
+  .celebrate-badge { animation: popCelebrate 0.6s ease; }
+  .streak-num { font-size: 38px; font-weight: 800; font-family: ui-monospace, monospace; color: var(--accent); margin: 4px 0; }
 </style>
 </head>
 <body>
@@ -96,8 +101,45 @@ const WEEK_ORDER = [1,2,3,4,5,6,0];
 
 const DEFAULT_PROGRAM = {
   1: { type: "rest" },
-  3: { type: "rest" },
   5: { type: "rest" },
+  2: { type: "main", title: "プッシュ補助(短時間)",
+    heavy: [
+      {name:"ダンベルトライセップスエクステンション", target:"片手8〜10kg", bench:"フラット(0度)に仰向け", sets:3, reps:"8回"},
+      {name:"プランク", target:"自重", bench:"", sets:3, reps:"50秒"},
+    ],
+    reps: [
+      {name:"ダンベルトライセップスエクステンション", target:"片手6〜8kg", bench:"フラット(0度)に仰向け", sets:3, reps:"12回"},
+      {name:"プランク", target:"自重", bench:"", sets:3, reps:"40秒"},
+    ]
+  },
+  3: { type: "main", title: "上半身プル",
+    heavy: [
+      {name:"ベントオーバーロウ", target:"片手15〜18kg", bench:"", sets:4, reps:"6回"},
+      {name:"シングルアームロウ", target:"片手15〜18kg", bench:"フラット(0度)に片膝・片手で支える", sets:3, reps:"6回(片腕ずつ)"},
+      {name:"ダンベルプルオーバー", target:"両手保持12〜15kg", bench:"フラット(0度)仰向け", sets:3, reps:"8回"},
+      {name:"インクラインダンベルカール", target:"片手8〜10kg", bench:"45〜60度", sets:3, reps:"8回"},
+      {name:"ラテラルレイズ", target:"片手6〜8kg", bench:"", sets:3, reps:"8回"},
+    ],
+    reps: [
+      {name:"ベントオーバーロウ", target:"8〜10kg", bench:"", sets:3, reps:"15回"},
+      {name:"シングルアームロウ", target:"10〜12kg", bench:"フラット(0度)に片膝・片手で支える", sets:3, reps:"15回(片腕ずつ)"},
+      {name:"ダンベルプルオーバー", target:"両手保持8〜10kg", bench:"フラット(0度)仰向け", sets:3, reps:"12回"},
+      {name:"インクラインダンベルカール", target:"片手6〜8kg", bench:"45〜60度", sets:3, reps:"12回"},
+      {name:"ラテラルレイズ", target:"4〜6kg", bench:"", sets:3, reps:"15回"},
+    ]
+  },
+  4: { type: "main", title: "プル補助(短時間)",
+    heavy: [
+      {name:"ベントオーバーリアレイズ", target:"片手6〜8kg", bench:"", sets:3, reps:"8回"},
+      {name:"アームカール", target:"10〜12kg", bench:"", sets:3, reps:"8回"},
+      {name:"ダンベルサイドベンド", target:"片手10〜14kg", bench:"", sets:3, reps:"8回(片側ずつ)"},
+    ],
+    reps: [
+      {name:"ベントオーバーリアレイズ", target:"片手4〜6kg", bench:"", sets:3, reps:"15回"},
+      {name:"アームカール", target:"8〜10kg", bench:"", sets:3, reps:"12回"},
+      {name:"ダンベルサイドベンド", target:"片手8〜12kg", bench:"", sets:3, reps:"12回(片側ずつ)"},
+    ]
+  },
   6: { type: "main", title: "下半身メイン",
     heavy: [
       {name:"ゴブレットスクワット", target:"15〜18kg", bench:"", sets:4, reps:"6回"},
@@ -117,35 +159,17 @@ const DEFAULT_PROGRAM = {
       {name:"ダンベルベンチプレス", target:"片手12〜15kg", bench:"フラット(0度)", sets:4, reps:"6回"},
       {name:"シーテッドショルダープレス", target:"片手10〜12kg", bench:"ほぼ垂直(80〜90度)", sets:3, reps:"6回"},
       {name:"インクラインダンベルプレス", target:"片手10〜12kg", bench:"30〜45度", sets:3, reps:"6回"},
+      {name:"ダンベルフライ", target:"片手8〜10kg", bench:"フラット(0度)仰向け", sets:3, reps:"8回"},
       {name:"サイドプランク", target:"自重", bench:"", sets:3, reps:"30〜40秒(左右)"},
     ],
     reps: [
       {name:"ダンベルベンチプレス", target:"8〜10kg", bench:"フラット(0度)", sets:3, reps:"15回"},
       {name:"シーテッドショルダープレス", target:"6〜8kg", bench:"ほぼ垂直(80〜90度)", sets:3, reps:"15回"},
       {name:"インクラインダンベルプレス", target:"6〜8kg", bench:"30〜45度", sets:3, reps:"15回"},
+      {name:"ダンベルフライ", target:"片手6〜8kg", bench:"フラット(0度)仰向け", sets:3, reps:"12回"},
       {name:"腹筋ローラー", target:"自重", bench:"", sets:3, reps:"10〜12回"},
     ]
   },
-  2: { type: "main", title: "上半身プル",
-    heavy: [
-      {name:"ベントオーバーロウ", target:"片手15〜18kg", bench:"", sets:4, reps:"6回"},
-      {name:"シングルアームロウ", target:"片手15〜18kg", bench:"フラット(0度)に片膝・片手で支える", sets:3, reps:"6回(片腕ずつ)"},
-      {name:"ラテラルレイズ", target:"片手6〜8kg", bench:"", sets:3, reps:"8回"},
-      {name:"アームカール", target:"片手10〜12kg", bench:"", sets:3, reps:"6回"},
-    ],
-    reps: [
-      {name:"ベントオーバーロウ", target:"8〜10kg", bench:"", sets:3, reps:"15回"},
-      {name:"シングルアームロウ", target:"10〜12kg", bench:"フラット(0度)に片膝・片手で支える", sets:3, reps:"15回(片腕ずつ)"},
-      {name:"ラテラルレイズ", target:"4〜6kg", bench:"", sets:3, reps:"15回"},
-      {name:"アームカール", target:"6〜8kg", bench:"", sets:3, reps:"15回"},
-    ]
-  },
-  4: { type: "light", title: "上半身補助(軽め・固定)", exercises: [
-      {name:"ダンベルトライセップスエクステンション", target:"片手6〜8kg", bench:"フラット(0度)に仰向け", sets:3, reps:"12回"},
-      {name:"ベントオーバーリアレイズ", target:"片手4〜6kg", bench:"", sets:3, reps:"15回"},
-      {name:"アームカール", target:"8〜10kg", bench:"", sets:3, reps:"12回"},
-      {name:"プランク", target:"自重", bench:"", sets:3, reps:"40秒"},
-  ]},
 };
 
 const DEFAULT_EXERCISES_META = [
@@ -161,14 +185,19 @@ const DEFAULT_EXERCISES_META = [
   {name:"アームカール", primary:"上腕二頭筋", secondary:"前腕", unilateral:false},
   {name:"ヒップリフト", primary:"臀筋", secondary:"ハムストリングス", unilateral:false},
   {name:"プランク", primary:"腹直筋・体幹", secondary:"", unilateral:false},
-  {name:"サイドプランク", primary:"腹斜筋", secondary:"", unilateral:true},
+  {name:"サイドプランク", primary:"腹斜筋", secondary:"", unilateral:false},
   {name:"マウンテンクライマー", primary:"体幹", secondary:"心肺(有酸素)", unilateral:false},
   {name:"腹筋ローラー", primary:"腹直筋", secondary:"広背筋・肩", unilateral:false},
   {name:"ダンベルトライセップスエクステンション", primary:"上腕三頭筋", secondary:"", unilateral:false},
   {name:"ベントオーバーリアレイズ", primary:"三角筋後部", secondary:"僧帽筋", unilateral:false},
+  {name:"ダンベルプルオーバー", primary:"広背筋", secondary:"大胸筋・上腕三頭筋", unilateral:false},
+  {name:"インクラインダンベルカール", primary:"上腕二頭筋", secondary:"", unilateral:false},
+  {name:"ダンベルサイドベンド", primary:"腹斜筋", secondary:"", unilateral:true},
+  {name:"ダンベルフライ", primary:"大胸筋", secondary:"三角筋前部", unilateral:false},
 ];
 
 function uid(p){ return p+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,7); }
+function localDateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function todayStr(){ return localDateStr(new Date()); }
 function mondayOf(d){
   const date = new Date(d);
@@ -177,7 +206,6 @@ function mondayOf(d){
   date.setHours(0,0,0,0);
   return date;
 }
-function localDateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function weekKeyFor(d){ return localDateStr(mondayOf(d)); }
 function defaultWeekTypeFor(d){
   const REF = new Date("2026-08-10T00:00:00");
@@ -221,17 +249,19 @@ function syncExercisesWithProgram(){
   if (changed) save("ironlog_exercises", exercises);
 }
 syncExercisesWithProgram();
+
 let tab = "log";
 let selectedExId = exercises[0] ? exercises[0].id : null;
 let form = { date: todayStr() };
-let logFilterMode = "today";
-let logSide = "L";
+let editingDay = null;
 let showMemo = false;
 let swRunning = false;
 let swStartTime = 0;
 let swElapsed = 0;
 let swIntervalId = null;
-let editingDay = null;
+let logFilterMode = "today";
+let logSide = "L";
+let heatmapPeriod = "3m";
 
 (function initWeekType(){
   const now = new Date();
@@ -292,6 +322,7 @@ function toggleUnilateral(id, checked){
   render();
 }
 function getExMeta(name){ return exercises.find(e=>e.name===name); }
+
 function addLog(){
   const w = document.getElementById("inWeight").value;
   const r = document.getElementById("inReps").value;
@@ -318,6 +349,7 @@ function setLogSide(side){
   if (rBtn) rBtn.classList.toggle("side-active", side==="R");
 }
 function toggleMemo(){ showMemo = !showMemo; render(); }
+function setHeatmapPeriod(p){ heatmapPeriod = p; render(); }
 
 function formatSW(sec){
   const m = Math.floor(sec/60).toString().padStart(2,"0");
@@ -384,69 +416,6 @@ function applySuggestedWeight(dow, variant, idx, newWeight){
   save("ironlog_program", program);
   showToast(ex.name + "の目安を更新した");
   render();
-}
-
-function exportData(){
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    exercises, logs, program,
-    weekType: load("ironlog_weektype", null),
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "iron-log-backup-" + todayStr() + ".json";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast("バックアップを書き出した");
-}
-function triggerImport(){ document.getElementById("importFileInput").click(); }
-function importData(fileInput){
-  const file = fileInput.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (!data.exercises || !data.logs) { showToast("ファイルの形式が違うかも"); return; }
-      if (!confirm("今のデータを上書きして読み込む?")) return;
-      exercises = data.exercises;
-      logs = data.logs;
-      program = data.program || DEFAULT_PROGRAM;
-      save("ironlog_exercises", exercises);
-      save("ironlog_logs", logs);
-      save("ironlog_program", program);
-      if (data.weekType) { save("ironlog_weektype", data.weekType); window.__weekType = data.weekType.type; window.__weekKey = data.weekType.weekKey; }
-      selectedExId = exercises[0] ? exercises[0].id : null;
-      showToast("データを読み込んだ");
-      render();
-    } catch(err) {
-      showToast("読み込みエラー");
-    }
-  };
-  reader.readAsText(file);
-  fileInput.value = "";
-}
-function getWeekTypeForDate(dateStr){
-  const d = new Date(dateStr + "T00:00:00");
-  const wk = weekKeyFor(d);
-  if (wk === window.__weekKey) return window.__weekType;
-  return defaultWeekTypeFor(d);
-}
-function programExercisesForDate(dateStr){
-  const d = new Date(dateStr + "T00:00:00");
-  const dow = d.getDay();
-  const p = program[dow];
-  if (!p || p.type === "rest") return [];
-  if (p.type === "light") return (p.exercises||[]).map(e=>e.name);
-  if (p.type === "main") {
-    const wt = getWeekTypeForDate(dateStr);
-    return (wt === "heavy" ? p.heavy : p.reps).map(e=>e.name);
-  }
-  return [];
 }
 
 // ---- 週間プログラム編集 ----
@@ -583,6 +552,25 @@ function renderTodayCard(){
     `;
   }
   return `<div class="today-card">${body}</div>`;
+}
+
+function programExercisesForDate(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  const dow = d.getDay();
+  const p = program[dow];
+  if (!p || p.type === "rest") return [];
+  if (p.type === "light") return (p.exercises||[]).map(e=>e.name);
+  if (p.type === "main") {
+    const wt = getWeekTypeForDate(dateStr);
+    return (wt === "heavy" ? p.heavy : p.reps).map(e=>e.name);
+  }
+  return [];
+}
+function getWeekTypeForDate(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  const wk = weekKeyFor(d);
+  if (wk === window.__weekKey) return window.__weekType;
+  return defaultWeekTypeFor(d);
 }
 
 function renderLogTab(){
@@ -790,26 +778,167 @@ function renderExercisesTab(){
   `;
 }
 
-function renderChartTab(){
-  const opts = exercises.map(e => `<option value="${e.id}" ${e.id===selectedExId?"selected":""}>${esc(e.name)}</option>`).join("");
-  const data = logs.filter(l=>l.exerciseId===selectedExId).sort((a,b)=> a.date===b.date ? (a.id<b.id?-1:1) : a.date.localeCompare(b.date));
-  const exName = (exercises.find(e=>e.id===selectedExId)||{}).name || "";
-  const latest = data[data.length-1];
-  let html = `<div class="field"><label class="field-label">種目を選択</label><select onchange="onSelectExercise(this.value)">${opts}</select></div>`;
-  if (latest) html += `<div class="card"><p class="section-label" style="margin:0;">直近の ${esc(exName)}${latest.side ? `(${latest.side==="L"?"左":"右"})` : ""}</p><p class="pr-num">${latest.weight}<span> kg</span></p></div>`;
-  if (data.length === 0) {
-    html += `<p class="empty">まだ記録がない。「記録」タブから入力してみて。</p>`;
-  } else {
-    html += `
-      <div class="card"><p class="section-label" style="margin:0 0 8px;">重量の推移(kg)</p><div class="chart-wrap" id="weightChart"></div></div>
-      <div class="card"><p class="section-label" style="margin:0 0 8px;">総ボリューム(重量×回数×セット)</p><div class="chart-wrap" id="volumeChart"></div></div>
-    `;
-  }
-  return html;
+function exportData(){
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    exercises, logs, program,
+    weekType: load("ironlog_weektype", null),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "iron-log-backup-" + todayStr() + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("バックアップを書き出した");
+}
+function triggerImport(){ document.getElementById("importFileInput").click(); }
+function importData(fileInput){
+  const file = fileInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.exercises || !data.logs) { showToast("ファイルの形式が違うかも"); return; }
+      if (!confirm("今のデータを上書きして読み込む?")) return;
+      exercises = data.exercises;
+      logs = data.logs;
+      program = data.program || DEFAULT_PROGRAM;
+      save("ironlog_exercises", exercises);
+      save("ironlog_logs", logs);
+      save("ironlog_program", program);
+      if (data.weekType) { save("ironlog_weektype", data.weekType); window.__weekType = data.weekType.type; window.__weekKey = data.weekType.weekKey; }
+      selectedExId = exercises[0] ? exercises[0].id : null;
+      showToast("データを読み込んだ");
+      render();
+    } catch(err) {
+      showToast("読み込みエラー");
+    }
+  };
+  reader.readAsText(file);
+  fileInput.value = "";
 }
 
-function buildLineSVG(labels, seriesList){
-  const width=340, height=180, padL=32, padR=10, padT=18, padB=26;
+// ---- グラフタブ: 継続ステータス・ヒートマップ・全種目一覧 ----
+function computeStreak(){
+  let streak = 0;
+  let d = new Date();
+  d.setHours(0,0,0,0);
+  const startGuard = new Date(d);
+  for (let i=0; i<3650; i++) {
+    const dow = d.getDay();
+    const dateStr = localDateStr(d);
+    const p = program[dow];
+    const isToday = dateStr === todayStr();
+    if (p && p.type !== "rest") {
+      const hasLog = logs.some(l => l.date === dateStr);
+      if (hasLog) {
+        streak++;
+      } else if (!isToday) {
+        break;
+      }
+    }
+    d.setDate(d.getDate()-1);
+  }
+  return streak;
+}
+function checkMilestoneCelebration(streak){
+  if (streak!==7 && streak!==30) { window.__celebrate = false; return; }
+  const celebrated = load("ironlog_celebrated", []);
+  if (celebrated.includes(streak)) { window.__celebrate = false; return; }
+  window.__celebrate = streak;
+  celebrated.push(streak);
+  save("ironlog_celebrated", celebrated);
+}
+function renderStreakCard(streak){
+  const celebrate = window.__celebrate;
+  return `
+    <div class="card" style="text-align:center;">
+      <p class="section-label" style="margin:0;">継続日数(予定トレ日ベース)</p>
+      <p class="streak-num">🔥 ${streak}</p>
+      <p class="hint" style="margin:0;">休養日はカウント対象外</p>
+      ${celebrate ? `<div class="celebrate-badge" style="margin-top:8px; font-size:13px; color:var(--accent2); font-weight:700;">🎉 ${celebrate}日連続達成！</div>` : ""}
+    </div>
+  `;
+}
+
+function buildHeatmapCells(periodDays){
+  const today = new Date(); today.setHours(0,0,0,0);
+  let rangeStart;
+  if (periodDays) {
+    rangeStart = new Date(today); rangeStart.setDate(rangeStart.getDate()-periodDays+1);
+  } else {
+    const allDates = logs.map(l=>l.date).sort();
+    rangeStart = allDates.length ? new Date(allDates[0]+"T00:00:00") : new Date(today);
+  }
+  const gridStart = new Date(rangeStart);
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+  const cells = [];
+  let d = new Date(gridStart);
+  let guard = 0;
+  while (d <= today && guard < 400) {
+    const dateStr = localDateStr(d);
+    const dow = d.getDay();
+    const p = program[dow];
+    const beforeRange = d < rangeStart;
+    let status = "pad";
+    if (!beforeRange) {
+      if (!p || p.type === "rest") status = "rest";
+      else status = logs.some(l=>l.date===dateStr) ? "done" : "missed";
+    }
+    cells.push({date: dateStr, status});
+    d.setDate(d.getDate()+1);
+    guard++;
+  }
+  return cells;
+}
+function renderHeatmapHTML(periodDays){
+  const cells = buildHeatmapCells(periodDays);
+  const weeks = [];
+  for (let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
+  let html = `<div style="display:flex; gap:3px; overflow-x:auto; padding-bottom:6px;">`;
+  weeks.forEach(week => {
+    html += `<div style="display:flex; flex-direction:column; gap:3px; flex-shrink:0;">`;
+    week.forEach(c => {
+      let bg = "transparent", border = "1px solid #33302B";
+      if (c.status === "done") { bg = "#C1442A"; border = "1px solid #C1442A"; }
+      else if (c.status === "rest") { bg = "#2A2724"; border = "1px solid #2A2724"; }
+      else if (c.status === "missed") { bg = "transparent"; border = "1px solid #C1442A"; }
+      else if (c.status === "pad") { html += `<div style="width:11px; height:11px;"></div>`; return; }
+      html += `<div title="${c.date}" style="width:11px; height:11px; border-radius:2px; background:${bg}; border:${border};"></div>`;
+    });
+    html += `</div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+function renderHeatmapCard(){
+  const periodDays = heatmapPeriod==="3m" ? 90 : heatmapPeriod==="6m" ? 180 : null;
+  return `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <p class="section-label" style="margin:0;">トレ記録カレンダー</p>
+        <div style="display:flex; gap:4px;">
+          <button class="period-btn ${heatmapPeriod==='3m'?'period-active':''}" onclick="setHeatmapPeriod('3m')">3ヶ月</button>
+          <button class="period-btn ${heatmapPeriod==='6m'?'period-active':''}" onclick="setHeatmapPeriod('6m')">半年</button>
+          <button class="period-btn ${heatmapPeriod==='all'?'period-active':''}" onclick="setHeatmapPeriod('all')">全期間</button>
+        </div>
+      </div>
+      ${renderHeatmapHTML(periodDays)}
+      <div style="display:flex; gap:12px; font-size:10px; color:var(--text-muted); margin-top:6px; flex-wrap:wrap;">
+        <span>🟧 トレした</span><span>⬜ 予定してたのに未記録</span><span>▪ 休養日</span>
+      </div>
+    </div>
+  `;
+}
+
+function buildLineSVG(labels, seriesList, height){
+  height = height || 180;
+  const width=340, padL=32, padR=10, padT=Math.round(height*0.1), padB=Math.round(height*0.15);
   const plotW = width-padL-padR, plotH = height-padT-padB;
   const allVals = seriesList.flatMap(s=>s.data).filter(v=>v!==null && v!==undefined);
   if (allVals.length===0) return '<p class="empty" style="padding:16px 0;">データなし</p>';
@@ -818,7 +947,8 @@ function buildLineSVG(labels, seriesList){
   const n = labels.length;
   const xPos = i => n<=1 ? padL+plotW/2 : padL + (i/(n-1))*plotW;
   const yPos = v => padT + (1-(v-minV)/(maxV-minV))*plotH;
-  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:180px; display:block;">`;
+  const fs = height < 140 ? 7 : 8;
+  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:${height}px; display:block;">`;
   for (let g=0; g<=2; g++){
     const gy = padT + (g/2)*plotH;
     svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${width-padR}" y2="${gy.toFixed(1)}" stroke="#42392F" stroke-width="1"/>`;
@@ -837,81 +967,66 @@ function buildLineSVG(labels, seriesList){
     s.data.forEach((v,i) => {
       if (v===null || v===undefined) return;
       const cx=xPos(i), cy=yPos(v);
-      svg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3" fill="${s.color}"/>`;
-      svg += `<text x="${cx.toFixed(1)}" y="${(cy-6).toFixed(1)}" font-size="8" fill="${s.color}" text-anchor="middle">${v}</text>`;
+      svg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="2.5" fill="${s.color}"/>`;
+      svg += `<text x="${cx.toFixed(1)}" y="${(cy-5).toFixed(1)}" font-size="${fs}" fill="${s.color}" text-anchor="middle">${v}</text>`;
     });
   });
   const step = Math.max(1, Math.ceil(n/6));
   labels.forEach((lab,i) => {
     if (i % step !== 0 && i !== n-1) return;
-    svg += `<text x="${xPos(i).toFixed(1)}" y="${height-8}" font-size="9" fill="#A79C89" text-anchor="middle">${esc(lab)}</text>`;
-  });
-  svg += `</svg>`;
-  return svg;
-}
-function buildBarSVG(labels, data, color){
-  const width=340, height=180, padL=26, padR=10, padT=20, padB=26;
-  const plotW = width-padL-padR, plotH = height-padT-padB;
-  const maxV = Math.max(...data, 1) * 1.2;
-  const n = data.length;
-  const bw = Math.min(28, plotW/n*0.6);
-  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:180px; display:block;">`;
-  for (let g=0; g<=2; g++){
-    const gy = padT + (g/2)*plotH;
-    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${width-padR}" y2="${gy.toFixed(1)}" stroke="#42392F" stroke-width="1"/>`;
-  }
-  data.forEach((v,i) => {
-    const cx = padL + (i+0.5)/n*plotW;
-    const barH = (v/maxV)*plotH;
-    const x = cx-bw/2, y = padT+plotH-barH;
-    svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="${color}"/>`;
-    svg += `<text x="${cx.toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="8" fill="${color}" text-anchor="middle">${v}</text>`;
-  });
-  const step = Math.max(1, Math.ceil(n/6));
-  labels.forEach((lab,i) => {
-    if (i % step !== 0 && i !== n-1) return;
-    const cx = padL + (i+0.5)/n*plotW;
-    svg += `<text x="${cx.toFixed(1)}" y="${height-8}" font-size="9" fill="#A79C89" text-anchor="middle">${esc(lab)}</text>`;
+    svg += `<text x="${xPos(i).toFixed(1)}" y="${height-6}" font-size="${fs}" fill="#A79C89" text-anchor="middle">${esc(lab)}</text>`;
   });
   svg += `</svg>`;
   return svg;
 }
 
-function drawCharts(){
-  const ex = exercises.find(e=>e.id===selectedExId);
-  const isUni = !!(ex && ex.unilateral);
-  const dataAll = logs.filter(l=>l.exerciseId===selectedExId);
-  if (dataAll.length === 0) return;
-  const dates = [...new Set(dataAll.map(l=>l.date))].sort();
-  const labels = dates.map(d => d.slice(5));
-  const volumes = dates.map(d => dataAll.filter(l=>l.date===d).reduce((sum,l)=> sum + l.weight*l.reps*l.sets, 0));
+function renderExerciseChartCard(ex){
+  const exLogs = logs.filter(l=>l.exerciseId===ex.id);
+  if (exLogs.length === 0) {
+    return `<div class="card" style="padding:12px 16px;"><p class="section-label" style="margin:0;">${esc(ex.name)}</p><p class="hint" style="margin:4px 0 0;">記録なし</p></div>`;
+  }
+  const dates = [...new Set(exLogs.map(l=>l.date))].sort();
+  const labels = dates.map(d=>d.slice(5));
+  const latest = exLogs.slice().sort((a,b)=> a.date===b.date ? (a.id<b.id?-1:1) : a.date.localeCompare(b.date)).pop();
+  let seriesList, legendHtml;
+  if (ex.unilateral) {
+    const byKey = {};
+    exLogs.forEach(l=>{ byKey[l.date+"_"+(l.side||"L")] = l; });
+    seriesList = [
+      {data: dates.map(d=>byKey[d+"_L"]?byKey[d+"_L"].weight:null), color:"#C1442A"},
+      {data: dates.map(d=>byKey[d+"_R"]?byKey[d+"_R"].weight:null), color:"#B9905A"},
+    ];
+    legendHtml = `<span>🔴左</span><span>🟡右</span>`;
+  } else {
+    const byDate = {};
+    exLogs.forEach(l=>{ byDate[l.date]=l; });
+    seriesList = [
+      {data: dates.map(d=>getWeekTypeForDate(d)==="heavy"?byDate[d].weight:null), color:"#C1442A"},
+      {data: dates.map(d=>getWeekTypeForDate(d)==="reps"?byDate[d].weight:null), color:"#B9905A"},
+    ];
+    legendHtml = `<span>🔴重量週</span><span>🟡回数週</span>`;
+  }
+  const svg = buildLineSVG(labels, seriesList, 100);
+  return `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+        <p class="section-label" style="margin:0;">${esc(ex.name)}${latest.side?` <span style="color:var(--accent2);">(直近:${latest.side==="L"?"左":"右"})</span>`:""}</p>
+        <p style="margin:0; font-family:ui-monospace,monospace; font-weight:800; color:var(--accent); font-size:15px;">${latest.weight}kg</p>
+      </div>
+      ${svg}
+      <div style="display:flex; gap:10px; font-size:10px; color:var(--text-muted); margin-top:2px;">${legendHtml}</div>
+    </div>
+  `;
+}
 
-  const wEl = document.getElementById("weightChart");
-  if (wEl) {
-    if (isUni) {
-      const byKey = {};
-      dataAll.forEach(l => { byKey[l.date+"_"+(l.side||"L")] = l; });
-      const leftWeights = dates.map(d => byKey[d+"_L"] ? byKey[d+"_L"].weight : null);
-      const rightWeights = dates.map(d => byKey[d+"_R"] ? byKey[d+"_R"].weight : null);
-      wEl.innerHTML = buildLineSVG(labels, [
-        {data: leftWeights, color: "#C1442A"},
-        {data: rightWeights, color: "#B9905A"},
-      ]) + `<div style="display:flex; gap:14px; margin-top:4px; font-size:11px; color:var(--text-muted);"><span>🔴 左</span><span>🟡 右</span></div>`;
-    } else {
-      const byDate = {};
-      dataAll.forEach(l => { byDate[l.date] = l; });
-      const heavyWeights = dates.map(d => getWeekTypeForDate(d) === "heavy" ? byDate[d].weight : null);
-      const repsWeights = dates.map(d => getWeekTypeForDate(d) === "reps" ? byDate[d].weight : null);
-      wEl.innerHTML = buildLineSVG(labels, [
-        {data: heavyWeights, color: "#C1442A"},
-        {data: repsWeights, color: "#B9905A"},
-      ]) + `<div style="display:flex; gap:14px; margin-top:4px; font-size:11px; color:var(--text-muted);"><span>🔴 重量週</span><span>🟡 回数週</span></div>`;
-    }
-  }
-  const vEl = document.getElementById("volumeChart");
-  if (vEl) {
-    vEl.innerHTML = buildBarSVG(labels, volumes, "#B9905A");
-  }
+function renderChartTab(){
+  const streak = computeStreak();
+  checkMilestoneCelebration(streak);
+  let html = renderStreakCard(streak);
+  html += renderHeatmapCard();
+  html += `<p class="section-label" style="margin-top:4px;">種目ごとの推移</p>`;
+  html += exercises.map(renderExerciseChartCard).join("");
+  return html;
 }
 
 function render(){
@@ -919,7 +1034,7 @@ function render(){
   if (tab === "log") app.innerHTML = renderLogTab();
   else if (tab === "week") app.innerHTML = renderWeekTab();
   else if (tab === "exercises") app.innerHTML = renderExercisesTab();
-  else if (tab === "chart") { app.innerHTML = renderChartTab(); drawCharts(); }
+  else if (tab === "chart") app.innerHTML = renderChartTab();
   document.querySelectorAll("nav.tabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
 }
 render();
