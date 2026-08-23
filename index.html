@@ -65,7 +65,7 @@
   .ex-edit-row .field { margin-bottom: 6px; }
   .backup-row { display: flex; gap: 8px; margin-top: 8px; }
   .backup-btn { flex: 1; background: var(--surface-alt); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px; font-size: 13px; cursor: pointer; text-align: center; }
-  .suggest-line { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; padding: 6px 8px; background: rgba(193,68,42,0.12); border: 1px solid var(--accent); border-radius: 8px; font-size: 11px; color: var(--text); flex-wrap: wrap; }
+  .suggest-line { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-top: 6px; padding: 6px 8px; background: rgba(193,68,42,0.12); border: 1px solid var(--accent); border-radius: 8px; font-size: 11px; color: var(--text); flex-wrap: wrap; }
   .apply-btn { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; flex-shrink: 0; }
   .memo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 16px; }
   .memo-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
@@ -332,13 +332,43 @@ function addLog(){
   if(!selectedExId || w==="" || r==="" || s==="") return;
   const selectedEx = exercises.find(e=>e.id===selectedExId);
   const side = (selectedEx && selectedEx.unilateral) ? logSide : null;
-  logs = [...logs, {id: uid("log"), exerciseId: selectedExId, date: d, weight: parseFloat(w), reps: parseInt(r,10), sets: parseInt(s,10), side}];
+  const setNumber = logs.filter(l => l.exerciseId===selectedExId && l.date===d && (l.side||null)===(side||null)).length + 1;
+  logs = [...logs, {id: uid("log"), exerciseId: selectedExId, date: d, weight: parseFloat(w), reps: parseInt(r,10), sets: parseInt(s,10), side, setNumber, timestamp: Date.now()}];
   save("ironlog_logs", logs);
   form = {date: d};
-  showToast(side ? `記録した(${side==="L"?"左":"右"})` : "記録した");
+  showToast(side ? `記録した(${side==="L"?"左":"右"}・${setNumber}セット目)` : `記録した(${setNumber}セット目)`);
   render();
 }
 function deleteLog(id){ logs = logs.filter(l=>l.id!==id); save("ironlog_logs", logs); render(); }
+function deleteLogGroup(idsStr){
+  const ids = idsStr.split(",");
+  logs = logs.filter(l=>!ids.includes(l.id));
+  save("ironlog_logs", logs);
+  render();
+}
+function groupTodaysLogs(sortedLogs){
+  const seen = new Map();
+  const order = [];
+  sortedLogs.forEach(l => {
+    const key = `${l.exerciseId}::${l.weight}::${l.reps}::${l.side||""}`;
+    if (!seen.has(key)) {
+      const g = {exerciseId:l.exerciseId, weight:l.weight, reps:l.reps, side:l.side, sets:0, ids:[], setNumbers:[]};
+      seen.set(key, g);
+      order.push(g);
+    }
+    const g = seen.get(key);
+    g.sets += l.sets;
+    g.ids.push(l.id);
+    if (l.setNumber) g.setNumbers.push(l.setNumber);
+  });
+  order.forEach(g => g.setNumbers.sort((a,b)=>a-b));
+  return order;
+}
+function setNumbersLabel(nums){
+  if (!nums || nums.length===0) return "";
+  const min = nums[0], max = nums[nums.length-1];
+  return min===max ? `セット${min}` : `セット${min}〜${max}`;
+}
 function onSelectExercise(id){ selectedExId = id; render(); }
 function onDateChange(v){ form.date = v; render(); }
 function toggleLogFilter(){ logFilterMode = logFilterMode === "today" ? "all" : "today"; render(); }
@@ -351,6 +381,14 @@ function setLogSide(side){
 }
 function toggleMemo(){ showMemo = !showMemo; render(); }
 function setHeatmapPeriod(p){ heatmapPeriod = p; render(); }
+function getCondition(date){ return load("ironlog_conditions", {})[date] || null; }
+function setCondition(date, level){
+  const c = load("ironlog_conditions", {});
+  c[date] = level;
+  save("ironlog_conditions", c);
+  render();
+}
+const CONDITION_EMOJI = ["😫","😕","😐","🙂","😃"];
 
 function formatSW(sec){
   const m = Math.floor(sec/60).toString().padStart(2,"0");
@@ -401,11 +439,65 @@ function parseRepsTarget(reps){
   const m = reps.match(/^(\d+)回/);
   return m ? parseInt(m[1],10) : null;
 }
+function isBetterSet(candidate, current){
+  if (!current) return true;
+  if (candidate.weight !== current.weight) return candidate.weight > current.weight;
+  return candidate.reps > current.reps;
+}
 function getLastLogForExerciseName(name){
   const ex = exercises.find(e=>e.name===name);
   if (!ex) return null;
-  const matched = logs.filter(l=>l.exerciseId===ex.id).sort((a,b)=> a.date===b.date ? (a.id<b.id?1:-1) : a.date<b.date?1:-1);
-  return matched[0] || null;
+  const exLogs = logs.filter(l=>l.exerciseId===ex.id);
+  if (exLogs.length === 0) return null;
+  const mostRecentDate = exLogs.map(l=>l.date).sort().pop();
+  const dayLogs = exLogs.filter(l=>l.date===mostRecentDate);
+  return dayLogs.reduce((best,l)=> isBetterSet(l,best) ? l : best, null);
+}
+function getRecentSessionDates(exerciseId, n){
+  const conditions = load("ironlog_conditions", {});
+  const dates = [...new Set(logs.filter(l=>l.exerciseId===exerciseId).map(l=>l.date))]
+    .filter(d => { const c = conditions[d]; return !(c && c<=2); })
+    .sort().reverse();
+  return dates.slice(0, n);
+}
+function sessionAllMet(date, exerciseId, repsTarget, weightMax){
+  const dayLogs = logs.filter(l=>l.exerciseId===exerciseId && l.date===date);
+  if (dayLogs.length === 0) return false;
+  return dayLogs.every(l => l.reps >= repsTarget && l.weight >= weightMax);
+}
+function sessionMostlyFailed(date, exerciseId, repsTarget, weightMin){
+  const dayLogs = logs.filter(l=>l.exerciseId===exerciseId && l.date===date && l.weight >= weightMin);
+  if (dayLogs.length === 0) return false;
+  const failCount = dayLogs.filter(l => l.reps < repsTarget).length;
+  return failCount > dayLogs.length / 2;
+}
+function getSessionPosition(date, exerciseId){
+  const dayLogs = logs.filter(l=>l.date===date);
+  if (dayLogs.length === 0) return null;
+  const firstTs = {};
+  dayLogs.forEach(l => {
+    const t = l.timestamp || 0;
+    if (!(l.exerciseId in firstTs) || t < firstTs[l.exerciseId]) firstTs[l.exerciseId] = t;
+  });
+  const order = Object.keys(firstTs).sort((a,b)=>firstTs[a]-firstTs[b]);
+  const idx = order.indexOf(exerciseId);
+  return idx === -1 ? null : idx + 1;
+}
+function getTypicalPosition(exerciseId, excludeDates){
+  const dates = [...new Set(logs.filter(l=>l.exerciseId===exerciseId).map(l=>l.date))].filter(d=>!excludeDates.includes(d));
+  const positions = dates.map(d=>getSessionPosition(d, exerciseId)).filter(p=>p!==null).sort((a,b)=>a-b);
+  if (positions.length === 0) return null;
+  const mid = Math.floor(positions.length/2);
+  return positions.length % 2 ? positions[mid] : (positions[mid-1]+positions[mid])/2;
+}
+function positionNote(exerciseId, recentDates){
+  const lastDate = recentDates[0];
+  const pos = getSessionPosition(lastDate, exerciseId);
+  const typical = getTypicalPosition(exerciseId, recentDates);
+  if (pos === null || typical === null) return "";
+  if (pos - typical >= 2) return "(いつもよりだいぶ後の種目だった。疲労の影響もあるかも)";
+  if (typical - pos >= 2) return "(いつもよりだいぶ早い種目だった。フレッシュな状態での結果)";
+  return "";
 }
 function applySuggestedWeight(dow, variant, idx, newWeight){
   const p = program[dow];
@@ -495,25 +587,77 @@ function resetProgram(){
   render();
 }
 
+function circleNum(n){
+  const circled = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩"];
+  return circled[n-1] || `(${n})`;
+}
+function renderLastSessionBreakdown(name, unilateral){
+  const ex = exercises.find(e=>e.name===name);
+  if (!ex) return "";
+  const exLogs = logs.filter(l=>l.exerciseId===ex.id);
+  if (exLogs.length===0) return "";
+  const lastDate = exLogs.map(l=>l.date).sort().pop();
+  const dayLogs = exLogs.filter(l=>l.date===lastDate);
+  const fmt = arr => arr.map((l,i)=>`${circleNum(l.setNumber||i+1)}${l.weight}kg×${l.reps}`).join(" ");
+  let out = "";
+  if (unilateral) {
+    const left = dayLogs.filter(l=>(l.side||"L")==="L").sort((a,b)=>(a.setNumber||0)-(b.setNumber||0));
+    const right = dayLogs.filter(l=>l.side==="R").sort((a,b)=>(a.setNumber||0)-(b.setNumber||0));
+    if (left.length) out += `左 ${fmt(left)}`;
+    if (right.length) out += `${out?" / ":""}右 ${fmt(right)}`;
+  } else {
+    const sorted = dayLogs.slice().sort((a,b)=>(a.setNumber||0)-(b.setNumber||0));
+    out = fmt(sorted);
+  }
+  return out ? `<div class="muscle-line">📝 前回(${lastDate.slice(5)}): ${out}</div>` : "";
+}
 function renderExRow(ex, dow, variant, idx){
   const repsTarget = parseRepsTarget(ex.reps);
   const weightRange = parseTargetKgRange(ex.target);
   const lastLog = getLastLogForExerciseName(ex.name);
   const meta = getExMeta(ex.name);
+  const exMaster = exercises.find(e=>e.name===ex.name);
   let suggestion = "";
-  if (repsTarget && weightRange && lastLog && lastLog.reps >= repsTarget && lastLog.weight >= weightRange.max) {
-    const dismissKey = `${ex.name}::${lastLog.id}`;
-    if (!isSuggestionDismissed(dismissKey)) {
-      const nextW = lastLog.weight + 2;
-      suggestion = `
-        <div class="suggest-line">
-          <span>⬆️ 前回${lastLog.weight}kg×${lastLog.reps}回 達成 → 次は${nextW}kg目安</span>
-          <div style="display:flex; gap:4px; flex-shrink:0;">
-            <button class="apply-btn" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW})">反映</button>
-            <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${dismissKey.replace(/'/g,"\\'")}')">見送る</button>
-          </div>
-        </div>
-      `;
+  if (repsTarget && weightRange && exMaster) {
+    const recentDates = getRecentSessionDates(exMaster.id, 2);
+    if (recentDates.length >= 2) {
+      const note = positionNote(exMaster.id, recentDates);
+      const noteHtml = note ? `<div style="font-size:10px; opacity:0.8; margin-top:2px;">${note}</div>` : "";
+      if (recentDates.every(d => sessionAllMet(d, exMaster.id, repsTarget, weightRange.max))) {
+        const dismissKey = `${ex.name}::${recentDates[0]}::inc`;
+        if (!isSuggestionDismissed(dismissKey)) {
+          const nextW = lastLog.weight + 2;
+          suggestion = `
+            <div class="suggest-line">
+              <div>
+                <span>⬆️ 直近2回とも全セット${repsTarget}回以上クリア → 次は${nextW}kg目安</span>
+                ${noteHtml}
+              </div>
+              <div style="display:flex; gap:4px; flex-shrink:0;">
+                <button class="apply-btn" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW})">反映</button>
+                <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${dismissKey.replace(/'/g,"\\'")}')">見送る</button>
+              </div>
+            </div>
+          `;
+        }
+      } else if (recentDates.every(d => sessionMostlyFailed(d, exMaster.id, repsTarget, weightRange.min))) {
+        const dismissKey = `${ex.name}::${recentDates[0]}::dec`;
+        if (!isSuggestionDismissed(dismissKey)) {
+          const nextW = Math.max(0, lastLog.weight - 2);
+          suggestion = `
+            <div class="suggest-line" style="background:rgba(185,144,90,0.14); border-color:var(--accent2);">
+              <div>
+                <span>⬇️ 直近2回とも目標${repsTarget}回に届かず → 次は${nextW}kgで様子見も</span>
+                ${noteHtml}
+              </div>
+              <div style="display:flex; gap:4px; flex-shrink:0;">
+                <button class="apply-btn" style="background:var(--accent2);" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW})">反映</button>
+                <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${dismissKey.replace(/'/g,"\\'")}')">見送る</button>
+              </div>
+            </div>
+          `;
+        }
+      }
     }
   }
   let metaLine = "";
@@ -524,6 +668,7 @@ function renderExRow(ex, dow, variant, idx){
   } else if (ex.bench) {
     metaLine = `<div class="bench-line">🪑 ベンチ: ${esc(ex.bench)}</div>`;
   }
+  const breakdown = renderLastSessionBreakdown(ex.name, !!(exMaster && exMaster.unilateral));
   return `
     <div class="ex-row-wrap">
       <button class="ex-row" onclick="pickExerciseByName('${esc(ex.name).replace(/'/g,"\\'")}')">
@@ -532,6 +677,7 @@ function renderExRow(ex, dow, variant, idx){
           <span class="target">${esc(ex.target)}<br>${ex.sets}セット × ${esc(ex.reps)}</span>
         </div>
         ${metaLine}
+        ${breakdown}
         ${suggestion}
       </button>
       <button class="video-btn" onclick="event.stopPropagation();openVideoSearch('${esc(ex.name).replace(/'/g,"\\'")}')">▶</button>
@@ -539,6 +685,93 @@ function renderExRow(ex, dow, variant, idx){
   `;
 }
 
+function computeReorderSuggestion(dow, variant){
+  const p = program[dow];
+  if (!p) return null;
+  const list = variant === "exercises" ? p.exercises : p[variant];
+  if (!list || list.length < 2) return null;
+  const stats = list.map((ex, idx) => {
+    const exMaster = exercises.find(e=>e.name===ex.name);
+    const repsTarget = parseRepsTarget(ex.reps);
+    const weightRange = parseTargetKgRange(ex.target);
+    if (!exMaster || !repsTarget || !weightRange) return {name: ex.name, idx, sensitive:false, score:0};
+    const dates = [...new Set(logs.filter(l=>l.exerciseId===exMaster.id).map(l=>l.date))];
+    let earlyTotal=0, earlySuccess=0, lateTotal=0, lateSuccess=0;
+    dates.forEach(d => {
+      const pos = getSessionPosition(d, exMaster.id);
+      if (pos===null) return;
+      const met = sessionAllMet(d, exMaster.id, repsTarget, weightRange.max);
+      if (pos<=2) { earlyTotal++; if (met) earlySuccess++; }
+      else { lateTotal++; if (met) lateSuccess++; }
+    });
+    let sensitive=false, score=0;
+    if (earlyTotal>=2 && lateTotal>=2){
+      const diff = (1-(lateSuccess/lateTotal)) - (1-(earlySuccess/earlyTotal));
+      if (diff >= 0.34) { sensitive=true; score=diff; }
+    }
+    return {name: ex.name, idx, sensitive, score};
+  });
+  if (!stats.some(s=>s.sensitive)) return null;
+  const sorted = stats.slice().sort((a,b)=>{
+    if (a.sensitive !== b.sensitive) return a.sensitive ? -1 : 1;
+    if (a.sensitive && b.sensitive) return b.score - a.score;
+    return a.idx - b.idx;
+  });
+  const newOrderNames = sorted.map(s=>s.name);
+  const currentOrderNames = list.map(l=>l.name);
+  if (JSON.stringify(newOrderNames) === JSON.stringify(currentOrderNames)) return null;
+  return { newOrderNames, sensitiveNames: stats.filter(s=>s.sensitive).map(s=>s.name) };
+}
+function applyReorder(dow, variant, newOrderNamesStr){
+  const newOrderNames = newOrderNamesStr.split("|||");
+  const p = program[dow];
+  const list = variant === "exercises" ? p.exercises : p[variant];
+  const byName = {};
+  list.forEach(ex=>{ byName[ex.name] = ex; });
+  const reordered = newOrderNames.map(n=>byName[n]).filter(Boolean);
+  if (variant === "exercises") p.exercises = reordered;
+  else {
+    p[variant] = reordered;
+    if (p.type === "main") {
+      const other = variant === "heavy" ? "reps" : "heavy";
+      const otherByName = {};
+      (p[other]||[]).forEach(ex=>{ otherByName[ex.name]=ex; });
+      const otherReordered = newOrderNames.map(n=>otherByName[n]).filter(Boolean);
+      if (otherReordered.length === (p[other]||[]).length) p[other] = otherReordered;
+    }
+  }
+  save("ironlog_program", program);
+  const dismissed = load("ironlog_dismissed_reorder", {});
+  delete dismissed[dow+"_"+variant];
+  save("ironlog_dismissed_reorder", dismissed);
+  showToast("並び順を更新した");
+  render();
+}
+function dismissReorder(dow, variant, newOrderNamesStr){
+  const dismissed = load("ironlog_dismissed_reorder", {});
+  dismissed[dow+"_"+variant] = newOrderNamesStr;
+  save("ironlog_dismissed_reorder", dismissed);
+  render();
+}
+function renderReorderSuggestion(dow, variant){
+  const s = computeReorderSuggestion(dow, variant);
+  if (!s) return "";
+  const sig = s.newOrderNames.join("|||");
+  const dismissed = load("ironlog_dismissed_reorder", {});
+  if (dismissed[dow+"_"+variant] === sig) return "";
+  return `
+    <div class="suggest-line" style="background:rgba(185,144,90,0.14); border-color:var(--accent2); margin-bottom:10px;">
+      <div>
+        <span>🔀 ${esc(s.sensitiveNames.join("・"))}は後半だと崩れがち。先にやる順に変えるのもアリ</span>
+        <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">新しい順: ${s.newOrderNames.map(esc).join(" → ")}</div>
+      </div>
+      <div style="display:flex; gap:4px; flex-shrink:0;">
+        <button class="apply-btn" style="background:var(--accent2);" onclick="applyReorder(${dow},'${variant}','${sig.replace(/'/g,"\\'")}')">反映</button>
+        <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="dismissReorder(${dow},'${variant}','${sig.replace(/'/g,"\\'")}')">見送る</button>
+      </div>
+    </div>
+  `;
+}
 function renderTodayCard(){
   const dow = new Date().getDay();
   const p = program[dow] || {type:"rest"};
@@ -552,6 +785,7 @@ function renderTodayCard(){
         <button class="toggle-btn" onclick="toggleWeekType()">🔁 ${window.__weekType==="heavy"?"重量週":"回数週"}</button>
       </div>
       <p class="today-title">${esc(p.title)}</p>
+      ${renderReorderSuggestion(dow, variant)}
       ${list.map((ex,idx) => renderExRow(ex, dow, variant, idx)).join("")}
       <p class="hint">種目名タップで入力欄にセット、▶で動画検索</p>
     `;
@@ -559,6 +793,7 @@ function renderTodayCard(){
     body = `
       <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span></div>
       <p class="today-title">${esc(p.title)}</p>
+      ${renderReorderSuggestion(dow, "exercises")}
       ${(p.exercises||[]).map((ex,idx) => renderExRow(ex, dow, "exercises", idx)).join("")}
       <p class="hint">種目名タップで入力欄にセット、▶で動画検索</p>
     `;
@@ -626,6 +861,18 @@ function renderLogTab(){
         </div>
       ` : ""}
     </div>
+    <div class="card" style="padding:12px 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <p class="section-label" style="margin:0;">${form.date} のコンディション</p>
+        ${getCondition(form.date) ? `<span style="font-size:11px; color:var(--text-muted);">記録済み</span>` : ""}
+      </div>
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        ${CONDITION_EMOJI.map((e,i) => `
+          <button onclick="setCondition('${form.date}', ${i+1})" style="flex:1; font-size:22px; padding:6px 0; border-radius:8px; background:${getCondition(form.date)===i+1?"var(--accent)":"var(--surface-alt)"}; border:1px solid ${getCondition(form.date)===i+1?"var(--accent)":"var(--border)"}; cursor:pointer;">${e}</button>
+        `).join("")}
+      </div>
+      <p class="hint" style="margin-top:6px;">悪い(1〜2)を付けた日は、重量提案の判断材料から自動で除外される</p>
+    </div>
     ${renderTodayCard()}
     <div class="card">
       <div class="field">
@@ -663,15 +910,19 @@ function renderLogTab(){
       <button class="btn-primary" onclick="addLog()">＋ 記録する</button>
     </div>
     <p class="section-label">${form.date} の記録</p>
-    ${todaysLogs.length===0 ? '<p class="empty">まだこの日の記録はなし</p>' : todaysLogs.map(l => `
-      <div class="log-item">
-        <div>
-          <p class="name">${esc(nameFor(l.exerciseId))}${l.side ? ` <span style="color:var(--accent2); font-size:11px;">(${l.side==="L"?"左":"右"})</span>` : ""}</p>
-          <p class="stat">${l.weight}kg × ${l.reps}回 × ${l.sets}セット</p>
+    ${(() => {
+      const grouped = groupTodaysLogs(todaysLogs);
+      if (grouped.length === 0) return '<p class="empty">まだこの日の記録はなし</p>';
+      return grouped.map(g => `
+        <div class="log-item">
+          <div>
+            <p class="name">${esc(nameFor(g.exerciseId))}${g.side ? ` <span style="color:var(--accent2); font-size:11px;">(${g.side==="L"?"左":"右"})</span>` : ""}</p>
+            <p class="stat">${g.weight}kg × ${g.reps}回 × ${g.sets}セット${g.setNumbers.length ? ` <span style="color:var(--text-muted);">(${setNumbersLabel(g.setNumbers)})</span>` : ""}</p>
+          </div>
+          <button class="del-btn" onclick="deleteLogGroup('${g.ids.join(",")}')">✕</button>
         </div>
-        <button class="del-btn" onclick="deleteLog('${l.id}')">✕</button>
-      </div>
-    `).join("")}
+      `).join("");
+    })()}
   `;
 }
 
@@ -1048,11 +1299,15 @@ function renderExerciseChartCard(ex){
   }
   const dates = [...new Set(exLogs.map(l=>l.date))].sort();
   const labels = dates.map(d=>d.slice(5));
-  const latest = exLogs.slice().sort((a,b)=> a.date===b.date ? (a.id<b.id?-1:1) : a.date.localeCompare(b.date)).pop();
+  const latestDate = dates[dates.length-1];
+  const latest = exLogs.filter(l=>l.date===latestDate).reduce((best,l)=> isBetterSet(l,best) ? l : best, null);
   let seriesList, legendHtml;
   if (ex.unilateral) {
     const byKey = {};
-    exLogs.forEach(l=>{ byKey[l.date+"_"+(l.side||"L")] = l; });
+    exLogs.forEach(l=>{
+      const k = l.date+"_"+(l.side||"L");
+      if (isBetterSet(l, byKey[k])) byKey[k] = l;
+    });
     seriesList = [
       {data: dates.map(d=>byKey[d+"_L"]?byKey[d+"_L"].weight:null), color:"#C1442A"},
       {data: dates.map(d=>byKey[d+"_R"]?byKey[d+"_R"].weight:null), color:"#B9905A"},
@@ -1060,7 +1315,9 @@ function renderExerciseChartCard(ex){
     legendHtml = `<span>🔴左</span><span>🟡右</span>`;
   } else {
     const byDate = {};
-    exLogs.forEach(l=>{ byDate[l.date]=l; });
+    exLogs.forEach(l=>{
+      if (isBetterSet(l, byDate[l.date])) byDate[l.date] = l;
+    });
     seriesList = [
       {data: dates.map(d=>getWeekTypeForDate(d)==="heavy"?byDate[d].weight:null), color:"#C1442A"},
       {data: dates.map(d=>getWeekTypeForDate(d)==="reps"?byDate[d].weight:null), color:"#B9905A"},
