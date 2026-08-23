@@ -262,6 +262,7 @@ let swIntervalId = null;
 let logFilterMode = "today";
 let logSide = "L";
 let heatmapPeriod = "3m";
+let heatmapSelectedDate = null;
 
 (function initWeekType(){
   const now = new Date();
@@ -918,26 +919,62 @@ function buildHeatmapCells(periodDays){
   }
   return cells;
 }
+function selectHeatmapDay(dateStr){
+  heatmapSelectedDate = (heatmapSelectedDate === dateStr) ? null : dateStr;
+  render();
+}
 function renderHeatmapHTML(periodDays){
   const cells = buildHeatmapCells(periodDays);
   const weeks = [];
   for (let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
-  let html = `<div style="display:flex; gap:3px; overflow-x:auto; padding-bottom:6px;">`;
+  let prevMonth = null;
+  let labelsHtml = `<div style="display:flex; gap:3px;">`;
+  let gridHtml = `<div style="display:flex; gap:3px;">`;
   weeks.forEach(week => {
-    html += `<div style="display:flex; flex-direction:column; gap:3px; flex-shrink:0;">`;
+    const firstReal = week.find(c => c.status !== "pad");
+    let label = "";
+    if (firstReal) {
+      const monthNum = new Date(firstReal.date+"T00:00:00").getMonth()+1;
+      if (monthNum !== prevMonth) { label = monthNum+"月"; prevMonth = monthNum; }
+    }
+    labelsHtml += `<div style="width:11px; font-size:9px; color:var(--text-muted); flex-shrink:0; white-space:nowrap; overflow:visible;">${label}</div>`;
+    gridHtml += `<div style="display:flex; flex-direction:column; gap:3px; flex-shrink:0;">`;
     week.forEach(c => {
+      if (c.status === "pad") { gridHtml += `<div style="width:11px; height:11px;"></div>`; return; }
       let bg = "transparent", border = "1px solid #33302B";
       if (c.status === "done") { bg = "#C1442A"; border = "1px solid #C1442A"; }
       else if (c.status === "rest") { bg = "#2A2724"; border = "1px solid #2A2724"; }
       else if (c.status === "missed") { bg = "transparent"; border = "1px solid #C1442A"; }
       else if (c.status === "today") { bg = "transparent"; border = "1px dashed #B9905A"; }
-      else if (c.status === "pad") { html += `<div style="width:11px; height:11px;"></div>`; return; }
-      html += `<div title="${c.date}" style="width:11px; height:11px; border-radius:2px; background:${bg}; border:${border};"></div>`;
+      const isSelected = heatmapSelectedDate === c.date;
+      const sel = isSelected ? "outline:2px solid #F2ECE1; outline-offset:1px;" : "";
+      gridHtml += `<div onclick="selectHeatmapDay('${c.date}')" style="width:11px; height:11px; border-radius:2px; background:${bg}; border:${border}; cursor:pointer; ${sel}"></div>`;
     });
-    html += `</div>`;
+    gridHtml += `</div>`;
   });
-  html += `</div>`;
-  return html;
+  labelsHtml += `</div>`;
+  gridHtml += `</div>`;
+  return `<div style="overflow-x:auto; padding-bottom:6px;"><div style="display:inline-block;">${labelsHtml}${gridHtml}</div></div>`;
+}
+function renderHeatmapDetail(){
+  if (!heatmapSelectedDate) return `<p class="hint" style="margin-top:6px;">マス目をタップすると、その日の記録が見れる</p>`;
+  const d = new Date(heatmapSelectedDate + "T00:00:00");
+  const dow = d.getDay();
+  const p = program[dow];
+  const dateLabel = `${d.getMonth()+1}/${d.getDate()}(${WEEKDAY_JP[dow]})`;
+  let body;
+  if (!p || p.type === "rest") {
+    body = `<p class="hint" style="margin:0;">休養日</p>`;
+  } else {
+    const dayLogs = logs.filter(l=>l.date===heatmapSelectedDate);
+    if (dayLogs.length === 0) {
+      body = `<p class="hint" style="margin:0;">この日は記録なし</p>`;
+    } else {
+      const nameFor = id => (exercises.find(e=>e.id===id)||{}).name || "?";
+      body = dayLogs.map(l => `<p style="margin:2px 0; font-size:12px;">${esc(nameFor(l.exerciseId))}${l.side?`(${l.side==="L"?"左":"右"})`:""}: ${l.weight}kg×${l.reps}回×${l.sets}セット</p>`).join("");
+    }
+  }
+  return `<div style="margin-top:8px; padding:8px 10px; background:var(--surface-alt); border-radius:8px;"><p style="margin:0 0 4px; font-size:12px; font-weight:700; color:var(--accent2);">${dateLabel}</p>${body}</div>`;
 }
 function renderHeatmapCard(){
   const periodDays = heatmapPeriod==="3m" ? 90 : heatmapPeriod==="6m" ? 180 : null;
@@ -955,6 +992,7 @@ function renderHeatmapCard(){
       <div style="display:flex; gap:12px; font-size:10px; color:var(--text-muted); margin-top:6px; flex-wrap:wrap;">
         <span>🟧 トレした</span><span>⬜ 予定してたのに未記録</span><span>┄ 今日(まだ)</span><span>▪ 休養日</span>
       </div>
+      ${renderHeatmapDetail()}
     </div>
   `;
 }
