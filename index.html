@@ -160,7 +160,7 @@ const DEFAULT_PROGRAM = {
       {name:"シーテッドショルダープレス", target:"片手10〜12kg", bench:"ほぼ垂直(80〜90度)", sets:3, reps:"6回"},
       {name:"インクラインダンベルプレス", target:"片手10〜12kg", bench:"30〜45度", sets:3, reps:"6回"},
       {name:"ダンベルフライ", target:"片手8〜10kg", bench:"フラット(0度)仰向け", sets:3, reps:"8回"},
-      {name:"サイドプランク", target:"自重", bench:"", sets:3, reps:"30〜40秒(左右)"},
+      {name:"腹筋ローラー(片手ずつ)", target:"自重", bench:"", sets:3, reps:"8回(片側ずつ)"},
     ],
     reps: [
       {name:"ダンベルベンチプレス", target:"8〜10kg", bench:"フラット(0度)", sets:3, reps:"15回"},
@@ -194,6 +194,7 @@ const DEFAULT_EXERCISES_META = [
   {name:"インクラインダンベルカール", primary:"上腕二頭筋", secondary:"", unilateral:false},
   {name:"ダンベルサイドベンド", primary:"腹斜筋", secondary:"", unilateral:true},
   {name:"ダンベルフライ", primary:"大胸筋", secondary:"三角筋前部", unilateral:false},
+  {name:"腹筋ローラー(片手ずつ)", primary:"腹斜筋", secondary:"広背筋・肩", unilateral:true},
 ];
 
 function uid(p){ return p+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,7); }
@@ -255,6 +256,7 @@ let selectedExId = exercises[0] ? exercises[0].id : null;
 let form = { date: todayStr() };
 let editingDay = null;
 let showMemo = false;
+let showMemoList = false;
 let swRunning = false;
 let swStartTime = 0;
 let swElapsed = 0;
@@ -392,6 +394,28 @@ function setLogSide(side){
   if (rBtn) rBtn.classList.toggle("side-active", side==="R");
 }
 function toggleMemo(){ showMemo = !showMemo; render(); }
+function toggleMemoList(){ showMemoList = !showMemoList; render(); }
+function onMemoListEdit(date, value){ saveMemo(date, value); }
+function renderMemoList(){
+  const memos = load("ironlog_memos", {});
+  const dates = Object.keys(memos).sort().reverse();
+  if (dates.length === 0) return `<p class="hint" style="margin-top:6px;">まだメモがない</p>`;
+  return `
+    <div style="margin-top:8px;">
+      ${dates.map(d => {
+        const cond = getCondition(d);
+        return `
+          <div class="ex-edit-row">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span style="font-size:11.5px; color:var(--accent2); font-weight:600;">${d.slice(5)}${cond ? " "+CONDITION_EMOJI[cond-1] : ""}</span>
+            </div>
+            <input value="${esc(memos[d])}" onchange="onMemoListEdit('${d}', this.value); this.blur();">
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
 function setHeatmapPeriod(p){ heatmapPeriod = p; render(); }
 function getCondition(date){ return load("ironlog_conditions", {})[date] || null; }
 function setCondition(date, level){
@@ -729,6 +753,62 @@ function renderExRow(ex, dow, variant, idx){
   `;
 }
 
+function computeMuscleGroupInsights(){
+  const allProgramExercises = [];
+  Object.entries(program).forEach(([dowStr, p]) => {
+    if (!p) return;
+    if (p.type === "light") (p.exercises||[]).forEach(ex=>allProgramExercises.push(ex));
+    if (p.type === "main") (p.heavy||[]).forEach(ex=>allProgramExercises.push(ex));
+  });
+  const uniqueNames = [...new Set(allProgramExercises.map(e=>e.name))];
+  const conditions = load("ironlog_conditions", {});
+  const muscleStats = {};
+  uniqueNames.forEach(name => {
+    const exMaster = exercises.find(e=>e.name===name);
+    if (!exMaster || !exMaster.primary) return;
+    const progEntry = allProgramExercises.find(e=>e.name===name);
+    const repsTarget = parseRepsTarget(progEntry.reps);
+    const weightRange = parseTargetKgRange(progEntry.target);
+    if (!repsTarget || !weightRange) return;
+    const dates = [...new Set(logs.filter(l=>l.exerciseId===exMaster.id).map(l=>l.date))]
+      .filter(d => { const c = conditions[d]; return !(c && c<=2); })
+      .filter(d => !isDateInDeloadWeek(d));
+    dates.forEach(d => {
+      const pos = getSessionPosition(d, exMaster.id);
+      if (pos===null) return;
+      const met = sessionAllMet(d, exMaster.id, repsTarget, weightRange.max);
+      const key = exMaster.primary;
+      if (!muscleStats[key]) muscleStats[key] = {earlyTotal:0, earlySuccess:0, lateTotal:0, lateSuccess:0, names:new Set()};
+      muscleStats[key].names.add(name);
+      if (pos<=2) { muscleStats[key].earlyTotal++; if(met) muscleStats[key].earlySuccess++; }
+      else { muscleStats[key].lateTotal++; if(met) muscleStats[key].lateSuccess++; }
+    });
+  });
+  const insights = [];
+  Object.entries(muscleStats).forEach(([muscle, s]) => {
+    if (s.earlyTotal>=2 && s.lateTotal>=2 && s.names.size>=2) {
+      const diff = (1-(s.lateSuccess/s.lateTotal)) - (1-(s.earlySuccess/s.earlyTotal));
+      if (diff >= 0.3) insights.push({muscle, diff, exercises:[...s.names]});
+    }
+  });
+  insights.sort((a,b)=>b.diff-a.diff);
+  return insights;
+}
+function renderMuscleInsightsCard(){
+  const insights = computeMuscleGroupInsights();
+  if (insights.length === 0) return "";
+  return `
+    <div class="card">
+      <p class="section-label" style="margin:0 0 8px;">🎯 部位ごとの傾向</p>
+      ${insights.map(i => `
+        <div style="background:var(--surface-alt); border-radius:8px; padding:8px 10px; margin-bottom:6px; font-size:12px;">
+          <b style="color:var(--accent2);">${esc(i.muscle)}</b>: ${esc(i.exercises.join("・"))} が、複数種目にまたがって後半だと崩れがち。関連種目を早めに配置するのを検討してもいいかも
+        </div>
+      `).join("")}
+      <p class="hint" style="margin-top:2px;">情報提供のみ。実際に並びを変えるのは各曜日の「今日のメニュー」内の提案から</p>
+    </div>
+  `;
+}
 function computeReorderSuggestion(dow, variant){
   const p = program[dow];
   if (!p) return null;
@@ -926,6 +1006,8 @@ function renderLogTab(){
         <label class="field-label">メモ(任意)</label>
         <input id="memoInput" value="${esc(getMemo(form.date))}" placeholder="例: 右肩が張ってた、フォーム重視で軽めにした" onchange="saveMemo('${form.date}', this.value)">
       </div>
+      <button onclick="toggleMemoList()" style="background:none; border:none; color:var(--accent2); font-size:11px; margin-top:8px; padding:0; cursor:pointer;">${showMemoList ? "メモ一覧を閉じる ▲" : "過去のメモ一覧を見る ▼"}</button>
+      ${showMemoList ? renderMemoList() : ""}
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
         <div>
           <p style="margin:0; font-size:12.5px; font-weight:600;">🔻 今週はデロード週</p>
@@ -1411,6 +1493,7 @@ function renderChartTab(){
   checkMilestoneCelebration(streak);
   let html = renderStreakCard(streak);
   html += renderHeatmapCard();
+  html += renderMuscleInsightsCard();
   html += `<p class="section-label" style="margin-top:4px;">種目ごとの推移</p>`;
   html += exercises.map(renderExerciseChartCard).join("");
   return html;
