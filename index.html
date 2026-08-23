@@ -324,6 +324,11 @@ function toggleUnilateral(id, checked){
 }
 function getExMeta(name){ return exercises.find(e=>e.name===name); }
 
+function getAllTimeMax(exerciseId, side){
+  const matching = logs.filter(l=>l.exerciseId===exerciseId && (l.side||null)===(side||null));
+  if (matching.length===0) return null;
+  return Math.max(...matching.map(l=>l.weight));
+}
 function addLog(){
   const w = document.getElementById("inWeight").value;
   const r = document.getElementById("inReps").value;
@@ -333,10 +338,17 @@ function addLog(){
   const selectedEx = exercises.find(e=>e.id===selectedExId);
   const side = (selectedEx && selectedEx.unilateral) ? logSide : null;
   const setNumber = logs.filter(l => l.exerciseId===selectedExId && l.date===d && (l.side||null)===(side||null)).length + 1;
-  logs = [...logs, {id: uid("log"), exerciseId: selectedExId, date: d, weight: parseFloat(w), reps: parseInt(r,10), sets: parseInt(s,10), side, setNumber, timestamp: Date.now()}];
+  const newWeight = parseFloat(w);
+  const prevMax = getAllTimeMax(selectedExId, side);
+  const isPR = prevMax !== null && newWeight > prevMax;
+  logs = [...logs, {id: uid("log"), exerciseId: selectedExId, date: d, weight: newWeight, reps: parseInt(r,10), sets: parseInt(s,10), side, setNumber, timestamp: Date.now()}];
   save("ironlog_logs", logs);
   form = {date: d};
-  showToast(side ? `記録した(${side==="L"?"左":"右"}・${setNumber}セット目)` : `記録した(${setNumber}セット目)`);
+  if (isPR) {
+    showToast(`🏆 自己ベスト更新！ ${newWeight}kg`);
+  } else {
+    showToast(side ? `記録した(${side==="L"?"左":"右"}・${setNumber}セット目)` : `記録した(${setNumber}セット目)`);
+  }
   render();
 }
 function deleteLog(id){ logs = logs.filter(l=>l.id!==id); save("ironlog_logs", logs); render(); }
@@ -389,6 +401,26 @@ function setCondition(date, level){
   render();
 }
 const CONDITION_EMOJI = ["😫","😕","😐","🙂","😃"];
+function getMemo(date){ return load("ironlog_memos", {})[date] || ""; }
+function saveMemo(date, text){
+  const m = load("ironlog_memos", {});
+  if (text.trim()) m[date] = text.trim(); else delete m[date];
+  save("ironlog_memos", m);
+}
+function isDeloadWeekKey(wk){ return load("ironlog_deload_weeks", []).includes(wk); }
+function isDateInDeloadWeek(dateStr){
+  const wk = weekKeyFor(new Date(dateStr + "T00:00:00"));
+  return isDeloadWeekKey(wk);
+}
+function toggleDeloadWeek(){
+  const arr = load("ironlog_deload_weeks", []);
+  const wk = window.__weekKey;
+  const idx = arr.indexOf(wk);
+  if (idx === -1) { arr.push(wk); showToast("今週をデロード週にした"); }
+  else { arr.splice(idx,1); showToast("デロード週を解除した"); }
+  save("ironlog_deload_weeks", arr);
+  render();
+}
 
 function formatSW(sec){
   const m = Math.floor(sec/60).toString().padStart(2,"0");
@@ -457,6 +489,7 @@ function getRecentSessionDates(exerciseId, n){
   const conditions = load("ironlog_conditions", {});
   const dates = [...new Set(logs.filter(l=>l.exerciseId===exerciseId).map(l=>l.date))]
     .filter(d => { const c = conditions[d]; return !(c && c<=2); })
+    .filter(d => !isDateInDeloadWeek(d))
     .sort().reverse();
   return dates.slice(0, n);
 }
@@ -609,7 +642,8 @@ function renderLastSessionBreakdown(name, unilateral){
     const sorted = dayLogs.slice().sort((a,b)=>(a.setNumber||0)-(b.setNumber||0));
     out = fmt(sorted);
   }
-  return out ? `<div class="muscle-line">📝 前回(${lastDate.slice(5)}): ${out}</div>` : "";
+  const memo = getMemo(lastDate);
+  return out ? `<div class="muscle-line">📝 前回(${lastDate.slice(5)}): ${out}${memo ? `<br>💬 ${esc(memo)}` : ""}</div>` : "";
 }
 function renderExRow(ex, dow, variant, idx){
   const repsTarget = parseRepsTarget(ex.reps);
@@ -669,6 +703,15 @@ function renderExRow(ex, dow, variant, idx){
     metaLine = `<div class="bench-line">🪑 ベンチ: ${esc(ex.bench)}</div>`;
   }
   const breakdown = renderLastSessionBreakdown(ex.name, !!(exMaster && exMaster.unilateral));
+  let warmupLine = "";
+  if (weightRange && weightRange.max > 0) {
+    const roundStep = v => Math.round(v/2)*2;
+    const w1 = roundStep(weightRange.max*0.5);
+    const w2 = roundStep(weightRange.max*0.7);
+    const w3 = roundStep(weightRange.max*0.9);
+    const steps = [...new Set([w1,w2,w3])].filter(v=>v>0 && v<weightRange.max);
+    if (steps.length) warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${steps.join("kg → ")}kg → 本番${weightRange.max}kg</div>`;
+  }
   return `
     <div class="ex-row-wrap">
       <button class="ex-row" onclick="pickExerciseByName('${esc(ex.name).replace(/'/g,"\\'")}')">
@@ -677,6 +720,7 @@ function renderExRow(ex, dow, variant, idx){
           <span class="target">${esc(ex.target)}<br>${ex.sets}セット × ${esc(ex.reps)}</span>
         </div>
         ${metaLine}
+        ${warmupLine}
         ${breakdown}
         ${suggestion}
       </button>
@@ -695,7 +739,10 @@ function computeReorderSuggestion(dow, variant){
     const repsTarget = parseRepsTarget(ex.reps);
     const weightRange = parseTargetKgRange(ex.target);
     if (!exMaster || !repsTarget || !weightRange) return {name: ex.name, idx, sensitive:false, score:0};
-    const dates = [...new Set(logs.filter(l=>l.exerciseId===exMaster.id).map(l=>l.date))];
+    const conditions = load("ironlog_conditions", {});
+    const dates = [...new Set(logs.filter(l=>l.exerciseId===exMaster.id).map(l=>l.date))]
+      .filter(d => { const c = conditions[d]; return !(c && c<=2); })
+      .filter(d => !isDateInDeloadWeek(d));
     let earlyTotal=0, earlySuccess=0, lateTotal=0, lateSuccess=0;
     dates.forEach(d => {
       const pos = getSessionPosition(d, exMaster.id);
@@ -775,6 +822,7 @@ function renderReorderSuggestion(dow, variant){
 function renderTodayCard(){
   const dow = new Date().getDay();
   const p = program[dow] || {type:"rest"};
+  const deloadBadge = isDeloadWeekKey(window.__weekKey) ? `<p style="margin:0 0 8px; font-size:11px; color:var(--accent2); font-weight:700;">🔻 デロード週(軽めに)</p>` : "";
   let body = "";
   if (p.type === "main") {
     const variant = window.__weekType === "heavy" ? "heavy" : "reps";
@@ -784,6 +832,7 @@ function renderTodayCard(){
         <span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span>
         <button class="toggle-btn" onclick="toggleWeekType()">🔁 ${window.__weekType==="heavy"?"重量週":"回数週"}</button>
       </div>
+      ${deloadBadge}
       <p class="today-title">${esc(p.title)}</p>
       ${renderReorderSuggestion(dow, variant)}
       ${list.map((ex,idx) => renderExRow(ex, dow, variant, idx)).join("")}
@@ -792,6 +841,7 @@ function renderTodayCard(){
   } else if (p.type === "light") {
     body = `
       <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span></div>
+      ${deloadBadge}
       <p class="today-title">${esc(p.title)}</p>
       ${renderReorderSuggestion(dow, "exercises")}
       ${(p.exercises||[]).map((ex,idx) => renderExRow(ex, dow, "exercises", idx)).join("")}
@@ -872,6 +922,17 @@ function renderLogTab(){
         `).join("")}
       </div>
       <p class="hint" style="margin-top:6px;">悪い(1〜2)を付けた日は、重量提案の判断材料から自動で除外される</p>
+      <div class="field" style="margin-top:10px; margin-bottom:0;">
+        <label class="field-label">メモ(任意)</label>
+        <input id="memoInput" value="${esc(getMemo(form.date))}" placeholder="例: 右肩が張ってた、フォーム重視で軽めにした" onchange="saveMemo('${form.date}', this.value)">
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
+        <div>
+          <p style="margin:0; font-size:12.5px; font-weight:600;">🔻 今週はデロード週</p>
+          <p class="hint" style="margin:2px 0 0;">この週の記録は全部、提案ロジックの判断材料から除外される</p>
+        </div>
+        <button class="toggle-btn" style="${isDeloadWeekKey(window.__weekKey)?"background:var(--accent2); border-color:var(--accent2); color:#fff;":""}" onclick="toggleDeloadWeek()">${isDeloadWeekKey(window.__weekKey)?"ON":"OFF"}</button>
+      </div>
     </div>
     ${renderTodayCard()}
     <div class="card">
@@ -1213,6 +1274,9 @@ function renderHeatmapDetail(){
   const dow = d.getDay();
   const p = program[dow];
   const dateLabel = `${d.getMonth()+1}/${d.getDate()}(${WEEKDAY_JP[dow]})`;
+  const cond = getCondition(heatmapSelectedDate);
+  const memo = getMemo(heatmapSelectedDate);
+  const extra = `${cond ? CONDITION_EMOJI[cond-1]+" " : ""}${memo ? `💬 ${esc(memo)}` : ""}`;
   let body;
   if (!p || p.type === "rest") {
     body = `<p class="hint" style="margin:0;">休養日</p>`;
@@ -1225,7 +1289,7 @@ function renderHeatmapDetail(){
       body = dayLogs.map(l => `<p style="margin:2px 0; font-size:12px;">${esc(nameFor(l.exerciseId))}${l.side?`(${l.side==="L"?"左":"右"})`:""}: ${l.weight}kg×${l.reps}回×${l.sets}セット</p>`).join("");
     }
   }
-  return `<div style="margin-top:8px; padding:8px 10px; background:var(--surface-alt); border-radius:8px;"><p style="margin:0 0 4px; font-size:12px; font-weight:700; color:var(--accent2);">${dateLabel}</p>${body}</div>`;
+  return `<div style="margin-top:8px; padding:8px 10px; background:var(--surface-alt); border-radius:8px;"><p style="margin:0 0 4px; font-size:12px; font-weight:700; color:var(--accent2);">${dateLabel} ${extra}</p>${body}</div>`;
 }
 function renderHeatmapCard(){
   const periodDays = heatmapPeriod==="3m" ? 90 : heatmapPeriod==="6m" ? 180 : null;
@@ -1325,12 +1389,17 @@ function renderExerciseChartCard(ex){
     legendHtml = `<span>🔴重量週</span><span>🟡回数週</span>`;
   }
   const svg = buildLineSVG(labels, seriesList, 100);
+  const prLine = ex.unilateral
+    ? [["左", getAllTimeMax(ex.id,"L")], ["右", getAllTimeMax(ex.id,"R")]]
+        .filter(([,v])=>v!==null).map(([lab,v])=>`🏆${lab}${v}kg`).join(" ")
+    : (() => { const v = getAllTimeMax(ex.id, null); return v!==null ? `🏆 自己ベスト ${v}kg` : ""; })();
   return `
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
         <p class="section-label" style="margin:0;">${esc(ex.name)}${latest.side?` <span style="color:var(--accent2);">(直近:${latest.side==="L"?"左":"右"})</span>`:""}</p>
         <p style="margin:0; font-family:ui-monospace,monospace; font-weight:800; color:var(--accent); font-size:15px;">${latest.weight}kg</p>
       </div>
+      ${prLine ? `<p style="margin:0 0 4px; font-size:10.5px; color:var(--accent2);">${esc(prLine)}</p>` : ""}
       ${svg}
       <div style="display:flex; gap:10px; font-size:10px; color:var(--text-muted); margin-top:2px;">${legendHtml}</div>
     </div>
