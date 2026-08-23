@@ -65,7 +65,7 @@
   .ex-edit-row .field { margin-bottom: 6px; }
   .backup-row { display: flex; gap: 8px; margin-top: 8px; }
   .backup-btn { flex: 1; background: var(--surface-alt); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px; font-size: 13px; cursor: pointer; text-align: center; }
-  .suggest-line { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; padding: 6px 8px; background: rgba(193,68,42,0.12); border: 1px solid var(--accent); border-radius: 8px; font-size: 11px; color: var(--text); }
+  .suggest-line { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; padding: 6px 8px; background: rgba(193,68,42,0.12); border: 1px solid var(--accent); border-radius: 8px; font-size: 11px; color: var(--text); flex-wrap: wrap; }
   .apply-btn { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; flex-shrink: 0; }
   .memo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 16px; }
   .memo-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
@@ -417,6 +417,16 @@ function applySuggestedWeight(dow, variant, idx, newWeight){
   showToast(ex.name + "の目安を更新した");
   render();
 }
+function isSuggestionDismissed(key){
+  return load("ironlog_dismissed_suggestions", []).includes(key);
+}
+function dismissSuggestion(key){
+  const arr = load("ironlog_dismissed_suggestions", []);
+  if (!arr.includes(key)) arr.push(key);
+  save("ironlog_dismissed_suggestions", arr);
+  showToast("今回は見送り");
+  render();
+}
 
 // ---- 週間プログラム編集 ----
 function toggleEditDay(dow){
@@ -491,13 +501,19 @@ function renderExRow(ex, dow, variant, idx){
   const meta = getExMeta(ex.name);
   let suggestion = "";
   if (repsTarget && weightRange && lastLog && lastLog.reps >= repsTarget && lastLog.weight >= weightRange.max) {
-    const nextW = lastLog.weight + 2;
-    suggestion = `
-      <div class="suggest-line">
-        ⬆️ 前回${lastLog.weight}kg×${lastLog.reps}回 達成 → 次は${nextW}kg目安
-        <button class="apply-btn" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW})">反映</button>
-      </div>
-    `;
+    const dismissKey = `${ex.name}::${lastLog.id}`;
+    if (!isSuggestionDismissed(dismissKey)) {
+      const nextW = lastLog.weight + 2;
+      suggestion = `
+        <div class="suggest-line">
+          <span>⬆️ 前回${lastLog.weight}kg×${lastLog.reps}回 達成 → 次は${nextW}kg目安</span>
+          <div style="display:flex; gap:4px; flex-shrink:0;">
+            <button class="apply-btn" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW})">反映</button>
+            <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${dismissKey.replace(/'/g,"\\'")}')">見送る</button>
+          </div>
+        </div>
+      `;
+    }
   }
   let metaLine = "";
   if (meta && (meta.primary || meta.secondary)) {
@@ -868,6 +884,7 @@ function renderStreakCard(streak){
 
 function buildHeatmapCells(periodDays){
   const today = new Date(); today.setHours(0,0,0,0);
+  const todayKey = localDateStr(today);
   let rangeStart;
   if (periodDays) {
     rangeStart = new Date(today); rangeStart.setDate(rangeStart.getDate()-periodDays+1);
@@ -888,7 +905,12 @@ function buildHeatmapCells(periodDays){
     let status = "pad";
     if (!beforeRange) {
       if (!p || p.type === "rest") status = "rest";
-      else status = logs.some(l=>l.date===dateStr) ? "done" : "missed";
+      else {
+        const hasLog = logs.some(l=>l.date===dateStr);
+        if (hasLog) status = "done";
+        else if (dateStr === todayKey) status = "today";
+        else status = "missed";
+      }
     }
     cells.push({date: dateStr, status});
     d.setDate(d.getDate()+1);
@@ -908,6 +930,7 @@ function renderHeatmapHTML(periodDays){
       if (c.status === "done") { bg = "#C1442A"; border = "1px solid #C1442A"; }
       else if (c.status === "rest") { bg = "#2A2724"; border = "1px solid #2A2724"; }
       else if (c.status === "missed") { bg = "transparent"; border = "1px solid #C1442A"; }
+      else if (c.status === "today") { bg = "transparent"; border = "1px dashed #B9905A"; }
       else if (c.status === "pad") { html += `<div style="width:11px; height:11px;"></div>`; return; }
       html += `<div title="${c.date}" style="width:11px; height:11px; border-radius:2px; background:${bg}; border:${border};"></div>`;
     });
@@ -930,7 +953,7 @@ function renderHeatmapCard(){
       </div>
       ${renderHeatmapHTML(periodDays)}
       <div style="display:flex; gap:12px; font-size:10px; color:var(--text-muted); margin-top:6px; flex-wrap:wrap;">
-        <span>🟧 トレした</span><span>⬜ 予定してたのに未記録</span><span>▪ 休養日</span>
+        <span>🟧 トレした</span><span>⬜ 予定してたのに未記録</span><span>┄ 今日(まだ)</span><span>▪ 休養日</span>
       </div>
     </div>
   `;
