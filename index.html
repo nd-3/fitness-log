@@ -97,6 +97,7 @@
 
 <script>
 const WEEKDAY_JP = ["日","月","火","水","木","金","土"];
+const DUMBBELL_MAX = 20;
 const WEEK_ORDER = [1,2,3,4,5,6,0];
 
 const DEFAULT_PROGRAM = {
@@ -173,28 +174,28 @@ const DEFAULT_PROGRAM = {
 };
 
 const DEFAULT_EXERCISES_META = [
-  {name:"ゴブレットスクワット", primary:"大腿四頭筋", secondary:"臀筋・体幹", unilateral:false},
-  {name:"ダンベルベンチプレス", primary:"大胸筋", secondary:"上腕三頭筋・三角筋前部", unilateral:false},
-  {name:"シーテッドショルダープレス", primary:"三角筋", secondary:"上腕三頭筋", unilateral:false},
-  {name:"ルーマニアンデッドリフト", primary:"ハムストリングス", secondary:"臀筋・脊柱起立筋", unilateral:false},
-  {name:"ベントオーバーロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:false},
-  {name:"ブルガリアンスプリットスクワット", primary:"大腿四頭筋", secondary:"臀筋", unilateral:true},
-  {name:"インクラインダンベルプレス", primary:"大胸筋上部", secondary:"三角筋前部・上腕三頭筋", unilateral:false},
-  {name:"ラテラルレイズ", primary:"三角筋中部", secondary:"", unilateral:false},
-  {name:"シングルアームロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:true},
-  {name:"アームカール", primary:"上腕二頭筋", secondary:"前腕", unilateral:false},
-  {name:"ヒップリフト", primary:"臀筋", secondary:"ハムストリングス", unilateral:false},
-  {name:"プランク", primary:"腹直筋・体幹", secondary:"", unilateral:false},
-  {name:"サイドプランク", primary:"腹斜筋", secondary:"", unilateral:false},
-  {name:"マウンテンクライマー", primary:"体幹", secondary:"心肺(有酸素)", unilateral:false},
-  {name:"腹筋ローラー", primary:"腹直筋", secondary:"広背筋・肩", unilateral:false},
-  {name:"ダンベルトライセップスエクステンション", primary:"上腕三頭筋", secondary:"", unilateral:false},
-  {name:"ベントオーバーリアレイズ", primary:"三角筋後部", secondary:"僧帽筋", unilateral:false},
-  {name:"ダンベルプルオーバー", primary:"広背筋", secondary:"大胸筋・上腕三頭筋", unilateral:false},
-  {name:"インクラインダンベルカール", primary:"上腕二頭筋", secondary:"", unilateral:false},
-  {name:"ダンベルサイドベンド", primary:"腹斜筋", secondary:"", unilateral:true},
-  {name:"ダンベルフライ", primary:"大胸筋", secondary:"三角筋前部", unilateral:false},
-  {name:"腹筋ローラー(片手ずつ)", primary:"腹斜筋", secondary:"広背筋・肩", unilateral:true},
+  {name:"ゴブレットスクワット", primary:"大腿四頭筋", secondary:"臀筋・体幹", unilateral:false, compound:true},
+  {name:"ダンベルベンチプレス", primary:"大胸筋", secondary:"上腕三頭筋・三角筋前部", unilateral:false, compound:true},
+  {name:"シーテッドショルダープレス", primary:"三角筋", secondary:"上腕三頭筋", unilateral:false, compound:true},
+  {name:"ルーマニアンデッドリフト", primary:"ハムストリングス", secondary:"臀筋・脊柱起立筋", unilateral:false, compound:true},
+  {name:"ベントオーバーロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:false, compound:true},
+  {name:"ブルガリアンスプリットスクワット", primary:"大腿四頭筋", secondary:"臀筋", unilateral:true, compound:true},
+  {name:"インクラインダンベルプレス", primary:"大胸筋上部", secondary:"三角筋前部・上腕三頭筋", unilateral:false, compound:true},
+  {name:"ラテラルレイズ", primary:"三角筋中部", secondary:"", unilateral:false, compound:false},
+  {name:"シングルアームロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:true, compound:true},
+  {name:"アームカール", primary:"上腕二頭筋", secondary:"前腕", unilateral:false, compound:false},
+  {name:"ヒップリフト", primary:"臀筋", secondary:"ハムストリングス", unilateral:false, compound:true},
+  {name:"プランク", primary:"腹直筋・体幹", secondary:"", unilateral:false, compound:false},
+  {name:"サイドプランク", primary:"腹斜筋", secondary:"", unilateral:false, compound:false},
+  {name:"マウンテンクライマー", primary:"体幹", secondary:"心肺(有酸素)", unilateral:false, compound:false},
+  {name:"腹筋ローラー", primary:"腹直筋", secondary:"広背筋・肩", unilateral:false, compound:false},
+  {name:"ダンベルトライセップスエクステンション", primary:"上腕三頭筋", secondary:"", unilateral:false, compound:false},
+  {name:"ベントオーバーリアレイズ", primary:"三角筋後部", secondary:"僧帽筋", unilateral:false, compound:false},
+  {name:"ダンベルプルオーバー", primary:"広背筋", secondary:"大胸筋・上腕三頭筋", unilateral:false, compound:false},
+  {name:"インクラインダンベルカール", primary:"上腕二頭筋", secondary:"", unilateral:false, compound:false},
+  {name:"ダンベルサイドベンド", primary:"腹斜筋", secondary:"", unilateral:true, compound:false},
+  {name:"ダンベルフライ", primary:"大胸筋", secondary:"三角筋前部", unilateral:false, compound:false},
+  {name:"腹筋ローラー(片手ずつ)", primary:"腹斜筋", secondary:"広背筋・肩", unilateral:true, compound:false},
 ];
 
 function uid(p){ return p+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,7); }
@@ -221,7 +222,7 @@ function save(key, val){
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
-let exercises = load("ironlog_exercises", DEFAULT_EXERCISES_META.map((m,i)=>({id:"ex_"+i, name:m.name, primary:m.primary, secondary:m.secondary, unilateral:!!m.unilateral})));
+let exercises = load("ironlog_exercises", DEFAULT_EXERCISES_META.map((m,i)=>({id:"ex_"+i, name:m.name, primary:m.primary, secondary:m.secondary, unilateral:!!m.unilateral, compound:!!m.compound})));
 let logs = load("ironlog_logs", []);
 let program = load("ironlog_program", DEFAULT_PROGRAM);
 
@@ -243,7 +244,7 @@ function syncExercisesWithProgram(){
   names.forEach(n => {
     if (!exercises.find(e=>e.name===n)) {
       const meta = DEFAULT_EXERCISES_META.find(m=>m.name===n);
-      exercises.push({id: uid("ex"), name:n, primary: meta?meta.primary:"", secondary: meta?meta.secondary:"", unilateral: meta?!!meta.unilateral:false});
+      exercises.push({id: uid("ex"), name:n, primary: meta?meta.primary:"", secondary: meta?meta.secondary:"", unilateral: meta?!!meta.unilateral:false, compound: meta?!!meta.compound:false});
       changed = true;
     }
   });
@@ -263,6 +264,7 @@ let swElapsed = 0;
 let swIntervalId = null;
 let logFilterMode = "today";
 let logSide = "L";
+let logFlag = false;
 let heatmapPeriod = "3m";
 let heatmapSelectedDate = null;
 
@@ -301,7 +303,7 @@ function pickExerciseByName(name){
 function addExercise(){
   const val = document.getElementById("newExInput").value.trim();
   if(!val) return;
-  exercises = [...exercises, {id: uid("ex"), name: val, primary:"", secondary:"", unilateral:false}];
+  exercises = [...exercises, {id: uid("ex"), name: val, primary:"", secondary:"", unilateral:false, compound:false}];
   save("ironlog_exercises", exercises);
   render();
 }
@@ -317,6 +319,13 @@ function updateExerciseMeta(id, field, value){
   ex[field] = value;
   save("ironlog_exercises", exercises);
 }
+function toggleCompound(id, checked){
+  const ex = exercises.find(e=>e.id===id);
+  if (!ex) return;
+  ex.compound = checked;
+  save("ironlog_exercises", exercises);
+  render();
+}
 function toggleUnilateral(id, checked){
   const ex = exercises.find(e=>e.id===id);
   if (!ex) return;
@@ -326,10 +335,65 @@ function toggleUnilateral(id, checked){
 }
 function getExMeta(name){ return exercises.find(e=>e.name===name); }
 
+function getSessionDuration(date){
+  const dayLogs = logs.filter(l=>l.date===date && l.timestamp);
+  if (dayLogs.length < 2) return null;
+  const timestamps = dayLogs.map(l=>l.timestamp);
+  return Math.round((Math.max(...timestamps) - Math.min(...timestamps)) / 60000);
+}
 function getAllTimeMax(exerciseId, side){
   const matching = logs.filter(l=>l.exerciseId===exerciseId && (l.side||null)===(side||null));
   if (matching.length===0) return null;
   return Math.max(...matching.map(l=>l.weight));
+}
+function isSessionComplete(date){
+  const d = new Date(date + "T00:00:00");
+  const dow = d.getDay();
+  const p = program[dow];
+  if (!p || p.type === "rest") return false;
+  const variant = p.type === "main" ? getWeekTypeForDate(date) : "exercises";
+  const list = variant === "exercises" ? p.exercises : p[variant];
+  if (!list || list.length === 0) return false;
+  return list.every(ex => {
+    const exMaster = exercises.find(e=>e.name===ex.name);
+    if (!exMaster) return false;
+    return logs.some(l=>l.exerciseId===exMaster.id && l.date===date);
+  });
+}
+function computeSessionSummary(date){
+  const dayLogs = logs.filter(l=>l.date===date);
+  if (dayLogs.length===0) return null;
+  const totalVolume = dayLogs.reduce((sum,l)=>sum+l.weight*l.reps*l.sets, 0);
+  const prSet = new Set();
+  dayLogs.forEach(l=>{
+    const allTimeMax = getAllTimeMax(l.exerciseId, l.side||null);
+    if (allTimeMax !== null && l.weight === allTimeMax) prSet.add(l.exerciseId+"_"+(l.side||""));
+  });
+  return { totalVolume, prCount: prSet.size, duration: getSessionDuration(date) };
+}
+function dismissSessionSummary(date){
+  save("ironlog_dismissed_summary", date);
+  render();
+}
+function renderSessionSummaryCard(){
+  const todayStr_ = todayStr();
+  if (!isSessionComplete(todayStr_)) return "";
+  if (load("ironlog_dismissed_summary", null) === todayStr_) return "";
+  const s = computeSessionSummary(todayStr_);
+  if (!s) return "";
+  return `
+    <div class="today-card" style="border-color:var(--accent);">
+      <div class="today-head">
+        <span class="eyebrow">🎉 今日のメニュー完了</span>
+        <button class="del-btn" onclick="dismissSessionSummary('${todayStr_}')">✕</button>
+      </div>
+      <div class="grid2">
+        <div><p class="hint" style="margin:0;">総ボリューム</p><p style="margin:0; font-weight:800; font-family:ui-monospace,monospace; color:var(--accent); font-size:18px;">${s.totalVolume.toLocaleString()}kg</p></div>
+        <div><p class="hint" style="margin:0;">PR更新</p><p style="margin:0; font-weight:800; font-family:ui-monospace,monospace; color:var(--accent2); font-size:18px;">${s.prCount}件</p></div>
+      </div>
+      ${s.duration ? `<p class="hint" style="margin-top:8px;">⏱ 所要時間: 約${s.duration}分</p>` : ""}
+    </div>
+  `;
 }
 function addLog(){
   const w = document.getElementById("inWeight").value;
@@ -343,13 +407,15 @@ function addLog(){
   const newWeight = parseFloat(w);
   const prevMax = getAllTimeMax(selectedExId, side);
   const isPR = prevMax !== null && newWeight > prevMax;
-  logs = [...logs, {id: uid("log"), exerciseId: selectedExId, date: d, weight: newWeight, reps: parseInt(r,10), sets: parseInt(s,10), side, setNumber, timestamp: Date.now()}];
+  logs = [...logs, {id: uid("log"), exerciseId: selectedExId, date: d, weight: newWeight, reps: parseInt(r,10), sets: parseInt(s,10), side, setNumber, timestamp: Date.now(), flag: logFlag}];
   save("ironlog_logs", logs);
   form = {date: d};
+  const flagUsed = logFlag;
+  logFlag = false;
   if (isPR) {
     showToast(`🏆 自己ベスト更新！ ${newWeight}kg`);
   } else {
-    showToast(side ? `記録した(${side==="L"?"左":"右"}・${setNumber}セット目)` : `記録した(${setNumber}セット目)`);
+    showToast(side ? `記録した(${side==="L"?"左":"右"}・${setNumber}セット目)` : `記録した(${setNumber}セット目)${flagUsed?" ⚠️":""}`);
   }
   render();
 }
@@ -366,7 +432,7 @@ function groupTodaysLogs(sortedLogs){
   sortedLogs.forEach(l => {
     const key = `${l.exerciseId}::${l.weight}::${l.reps}::${l.side||""}`;
     if (!seen.has(key)) {
-      const g = {exerciseId:l.exerciseId, weight:l.weight, reps:l.reps, side:l.side, sets:0, ids:[], setNumbers:[]};
+      const g = {exerciseId:l.exerciseId, weight:l.weight, reps:l.reps, side:l.side, sets:0, ids:[], setNumbers:[], flag:false};
       seen.set(key, g);
       order.push(g);
     }
@@ -374,6 +440,7 @@ function groupTodaysLogs(sortedLogs){
     g.sets += l.sets;
     g.ids.push(l.id);
     if (l.setNumber) g.setNumbers.push(l.setNumber);
+    if (l.flag) g.flag = true;
   });
   order.forEach(g => g.setNumbers.sort((a,b)=>a-b));
   return order;
@@ -393,9 +460,53 @@ function setLogSide(side){
   if (lBtn) lBtn.classList.toggle("side-active", side==="L");
   if (rBtn) rBtn.classList.toggle("side-active", side==="R");
 }
+function toggleLogFlag(){
+  logFlag = !logFlag;
+  const btn = document.getElementById("flagBtn");
+  if (btn) btn.classList.toggle("side-active", logFlag);
+}
 function toggleMemo(){ showMemo = !showMemo; render(); }
 function toggleMemoList(){ showMemoList = !showMemoList; render(); }
-function onMemoListEdit(date, value){ saveMemo(date, value); }
+function getMemos(date){
+  const v = load("ironlog_memos", {})[date];
+  if (!v) return [];
+  if (typeof v === "string") return [{text: v, ts: 0}]; // 旧形式(1日1文字列)の互換
+  return v;
+}
+function sendMemo(date){
+  const inp = document.getElementById("memoInput");
+  if (!inp) return;
+  const text = inp.value;
+  if (!text.trim()) return;
+  const m = load("ironlog_memos", {});
+  if (!m[date] || typeof m[date] === "string") m[date] = m[date] ? [{text: m[date], ts: 0}] : [];
+  m[date].push({text: text.trim(), ts: Date.now()});
+  save("ironlog_memos", m);
+  render();
+}
+function deleteMemoEntry(date, idx){
+  const m = load("ironlog_memos", {});
+  if (!m[date]) return;
+  if (typeof m[date] === "string") { delete m[date]; save("ironlog_memos", m); render(); return; }
+  m[date].splice(idx, 1);
+  if (m[date].length === 0) delete m[date];
+  save("ironlog_memos", m);
+  render();
+}
+function renderTodayMemos(date){
+  const memos = getMemos(date);
+  if (memos.length === 0) return "";
+  return `
+    <div style="margin-top:8px;">
+      ${memos.map((m,idx) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface-alt); border-radius:8px; padding:6px 10px; margin-bottom:4px;">
+          <span style="font-size:12px;">${esc(m.text)}</span>
+          <button class="del-btn" onclick="deleteMemoEntry('${date}', ${idx})">✕</button>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
 function renderMemoList(){
   const memos = load("ironlog_memos", {});
   const dates = Object.keys(memos).sort().reverse();
@@ -406,10 +517,10 @@ function renderMemoList(){
         const cond = getCondition(d);
         return `
           <div class="ex-edit-row">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
               <span style="font-size:11.5px; color:var(--accent2); font-weight:600;">${d.slice(5)}${cond ? " "+CONDITION_EMOJI[cond-1] : ""}</span>
             </div>
-            <input value="${esc(memos[d])}" onchange="onMemoListEdit('${d}', this.value); this.blur();">
+            ${renderTodayMemos(d)}
           </div>
         `;
       }).join("")}
@@ -425,11 +536,48 @@ function setCondition(date, level){
   render();
 }
 const CONDITION_EMOJI = ["😫","😕","😐","🙂","😃"];
-function getMemo(date){ return load("ironlog_memos", {})[date] || ""; }
-function saveMemo(date, text){
-  const m = load("ironlog_memos", {});
-  if (text.trim()) m[date] = text.trim(); else delete m[date];
-  save("ironlog_memos", m);
+function getBodyMetric(date){ return load("ironlog_body_metrics", {})[date] || null; }
+function saveBodyMetric(date, field, value){
+  const m = load("ironlog_body_metrics", {});
+  const v = value === "" ? null : parseFloat(value);
+  if (!m[date]) m[date] = {};
+  if (v === null) delete m[date][field]; else m[date][field] = v;
+  if (Object.keys(m[date]).length === 0) delete m[date];
+  save("ironlog_body_metrics", m);
+}
+function getMetricWeekday(){ return load("ironlog_metric_weekday", null); }
+function setMetricWeekday(v){
+  save("ironlog_metric_weekday", v === "" ? null : parseInt(v,10));
+  render();
+}
+function goToBodyMetrics(){
+  tab = "log";
+  render();
+  setTimeout(()=>{
+    const el = document.getElementById("bodyMetricsSection");
+    if (el) el.scrollIntoView({behavior:"smooth", block:"center"});
+    const inp = document.getElementById("bodyWeightInput");
+    if (inp) inp.focus();
+  }, 50);
+}
+function dismissBodyMetricReminder(){
+  save("ironlog_body_metric_reminder_dismissed", window.__weekKey);
+  render();
+}
+function renderBodyMetricReminder(){
+  if (getMetricWeekday() !== null) return "";
+  const metrics = load("ironlog_body_metrics", {});
+  const thisWeekKey = window.__weekKey;
+  const hasThisWeek = Object.keys(metrics).some(d => weekKeyFor(new Date(d+"T00:00:00")) === thisWeekKey);
+  if (hasThisWeek) return "";
+  const dismissed = load("ironlog_body_metric_reminder_dismissed", null);
+  if (dismissed === thisWeekKey) return "";
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:8px 10px; background:var(--surface-alt); border-radius:8px;">
+      <span style="font-size:11.5px; color:var(--text-muted);">📏 今週まだ体組成の記録なし。曜日を決めとくと管理しやすいで(上の「測定曜日」で設定できる)</span>
+      <button class="del-btn" onclick="dismissBodyMetricReminder()">✕</button>
+    </div>
+  `;
 }
 function isDeloadWeekKey(wk){ return load("ironlog_deload_weeks", []).includes(wk); }
 function isDateInDeloadWeek(dateStr){
@@ -509,6 +657,16 @@ function getLastLogForExerciseName(name){
   const dayLogs = exLogs.filter(l=>l.date===mostRecentDate);
   return dayLogs.reduce((best,l)=> isBetterSet(l,best) ? l : best, null);
 }
+function sessionOverJump(date, exerciseId){
+  const dayLogs = logs.filter(l=>l.exerciseId===exerciseId && l.date===date).sort((a,b)=>(a.setNumber||0)-(b.setNumber||0));
+  for (let i=1;i<dayLogs.length;i++){
+    const prev = dayLogs[i-1], cur = dayLogs[i];
+    if (cur.weight > prev.weight && cur.reps <= prev.reps*0.5 && cur.reps < 6) {
+      return {prevWeight:prev.weight, curWeight:cur.weight, prevReps:prev.reps, curReps:cur.reps};
+    }
+  }
+  return null;
+}
 function getRecentSessionDates(exerciseId, n){
   const conditions = load("ironlog_conditions", {});
   const dates = [...new Set(logs.filter(l=>l.exerciseId===exerciseId).map(l=>l.date))]
@@ -518,15 +676,17 @@ function getRecentSessionDates(exerciseId, n){
   return dates.slice(0, n);
 }
 function sessionAllMet(date, exerciseId, repsTarget, weightMax){
-  const dayLogs = logs.filter(l=>l.exerciseId===exerciseId && l.date===date);
-  if (dayLogs.length === 0) return false;
-  return dayLogs.every(l => l.reps >= repsTarget && l.weight >= weightMax);
+  const set1s = logs.filter(l=>l.exerciseId===exerciseId && l.date===date && l.setNumber===1);
+  const relevant = set1s.length ? set1s : logs.filter(l=>l.exerciseId===exerciseId && l.date===date);
+  if (relevant.length === 0) return false;
+  return relevant.every(l => l.reps >= repsTarget && l.weight >= weightMax);
 }
 function sessionMostlyFailed(date, exerciseId, repsTarget, weightMin){
-  const dayLogs = logs.filter(l=>l.exerciseId===exerciseId && l.date===date && l.weight >= weightMin);
-  if (dayLogs.length === 0) return false;
-  const failCount = dayLogs.filter(l => l.reps < repsTarget).length;
-  return failCount > dayLogs.length / 2;
+  const set1s = logs.filter(l=>l.exerciseId===exerciseId && l.date===date && l.setNumber===1 && l.weight >= weightMin);
+  const relevant = set1s.length ? set1s : logs.filter(l=>l.exerciseId===exerciseId && l.date===date && l.weight >= weightMin);
+  if (relevant.length === 0) return false;
+  const failCount = relevant.filter(l => l.reps < repsTarget).length;
+  return failCount > relevant.length / 2;
 }
 function getSessionPosition(date, exerciseId){
   const dayLogs = logs.filter(l=>l.date===date);
@@ -648,6 +808,9 @@ function circleNum(n){
   const circled = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩"];
   return circled[n-1] || `(${n})`;
 }
+function formatRestTime(sec){
+  return sec < 60 ? `${sec}秒` : `${Math.floor(sec/60)}分${sec%60}秒`;
+}
 function renderLastSessionBreakdown(name, unilateral){
   const ex = exercises.find(e=>e.name===name);
   if (!ex) return "";
@@ -655,7 +818,10 @@ function renderLastSessionBreakdown(name, unilateral){
   if (exLogs.length===0) return "";
   const lastDate = exLogs.map(l=>l.date).sort().pop();
   const dayLogs = exLogs.filter(l=>l.date===lastDate);
-  const fmt = arr => arr.map((l,i)=>`${circleNum(l.setNumber||i+1)}${l.weight}kg×${l.reps}`).join(" ");
+  const fmt = arr => arr.map((l,i)=>{
+    const rest = (i>0 && l.timestamp && arr[i-1].timestamp) ? Math.round((l.timestamp-arr[i-1].timestamp)/1000) : null;
+    return `${circleNum(l.setNumber||i+1)}${l.weight}kg×${l.reps}${rest!==null && rest>0 && rest<1800 ? `<span style="opacity:0.65;">(休憩${formatRestTime(rest)})</span>` : ""}`;
+  }).join(" ");
   let out = "";
   if (unilateral) {
     const left = dayLogs.filter(l=>(l.side||"L")==="L").sort((a,b)=>(a.setNumber||0)-(b.setNumber||0));
@@ -666,8 +832,9 @@ function renderLastSessionBreakdown(name, unilateral){
     const sorted = dayLogs.slice().sort((a,b)=>(a.setNumber||0)-(b.setNumber||0));
     out = fmt(sorted);
   }
-  const memo = getMemo(lastDate);
-  return out ? `<div class="muscle-line">📝 前回(${lastDate.slice(5)}): ${out}${memo ? `<br>💬 ${esc(memo)}` : ""}</div>` : "";
+  const memos = getMemos(lastDate);
+  const memoLine = memos.length ? memos.map(m=>`💬 ${esc(m.text)}`).join("<br>") : "";
+  return out ? `<div class="muscle-line">📝 前回(${lastDate.slice(5)}): ${out}${memoLine ? `<br>${memoLine}` : ""}</div>` : "";
 }
 function renderExRow(ex, dow, variant, idx){
   const repsTarget = parseRepsTarget(ex.reps);
@@ -685,10 +852,21 @@ function renderExRow(ex, dow, variant, idx){
         const dismissKey = `${ex.name}::${recentDates[0]}::inc`;
         if (!isSuggestionDismissed(dismissKey)) {
           const nextW = lastLog.weight + 2;
+          if (weightRange && lastLog.weight >= DUMBBELL_MAX || nextW > DUMBBELL_MAX) {
+            suggestion = `
+              <div class="suggest-line" style="background:rgba(185,144,90,0.18); border-color:var(--accent2);">
+                <div>
+                  <span>🎓 ダンベル上限(${DUMBBELL_MAX}kg)に到達済み or 近い。もう重量では伸ばせない</span>
+                  <div style="font-size:10px; opacity:0.8; margin-top:2px;">次の一手: テンポを落とす(ゆっくり下ろす)/ 一時停止(ポーズ)を入れる / 角度やバリエーションを変える、のどれかを検討</div>
+                </div>
+                <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${dismissKey.replace(/'/g,"\\'")}')">見送る</button>
+              </div>
+            `;
+          } else {
           suggestion = `
             <div class="suggest-line">
               <div>
-                <span>⬆️ 直近2回とも全セット${repsTarget}回以上クリア → 次は${nextW}kg目安</span>
+                <span>⬆️ 直近2回とも1セット目で${repsTarget}回以上に余裕 → 次は${nextW}kg目安</span>
                 ${noteHtml}
               </div>
               <div style="display:flex; gap:4px; flex-shrink:0;">
@@ -697,6 +875,7 @@ function renderExRow(ex, dow, variant, idx){
               </div>
             </div>
           `;
+          }
         }
       } else if (recentDates.every(d => sessionMostlyFailed(d, exMaster.id, repsTarget, weightRange.min))) {
         const dismissKey = `${ex.name}::${recentDates[0]}::dec`;
@@ -705,13 +884,52 @@ function renderExRow(ex, dow, variant, idx){
           suggestion = `
             <div class="suggest-line" style="background:rgba(185,144,90,0.14); border-color:var(--accent2);">
               <div>
-                <span>⬇️ 直近2回とも目標${repsTarget}回に届かず → 次は${nextW}kgで様子見も</span>
+                <span>⬇️ 直近2回とも1セット目で${repsTarget}回に届かず → 次は${nextW}kgで様子見も</span>
                 ${noteHtml}
               </div>
               <div style="display:flex; gap:4px; flex-shrink:0;">
                 <button class="apply-btn" style="background:var(--accent2);" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW})">反映</button>
                 <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${dismissKey.replace(/'/g,"\\'")}')">見送る</button>
               </div>
+            </div>
+          `;
+        }
+      }
+    }
+    // 直近セッションで、セット間の重量アップで回数が崩壊してないかチェック
+    const jumpDates = getRecentSessionDates(exMaster.id, 2);
+    if (jumpDates.length >= 2 && jumpDates.every(d => sessionOverJump(d, exMaster.id))) {
+      const jumpKey = `${ex.name}::${jumpDates[0]}::jump`;
+      if (!isSuggestionDismissed(jumpKey)) {
+        const j = sessionOverJump(jumpDates[0], exMaster.id);
+        suggestion += `
+          <div class="suggest-line" style="background:rgba(66,57,47,0.5); border-color:var(--border);">
+            <div>
+              <span>⚠️ 直近2回とも、セット重量を${j.prevWeight}→${j.curWeight}kgに上げた途端に${j.prevReps}回→${j.curReps}回まで急落。上げ幅が大きすぎるかも</span>
+              <div style="font-size:10px; opacity:0.8; margin-top:2px;">次回はもう1セット${j.prevWeight}kgのままにするか、${j.curWeight}kgを長めに続けるのがおすすめ</div>
+            </div>
+            <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${jumpKey.replace(/'/g,"\\'")}')">見送る</button>
+          </div>
+        `;
+      }
+    }
+    // プラトー検知: 直近6セッション(コンディション不良・デロード週除外)でトップセット重量が一切変わってないか
+    const plateauDates = getRecentSessionDates(exMaster.id, 6);
+    if (plateauDates.length >= 6) {
+      const topWeights = plateauDates.map(d => {
+        const dayLogs = logs.filter(l=>l.exerciseId===exMaster.id && l.date===d);
+        return dayLogs.reduce((best,l)=> isBetterSet(l,best) ? l : best, null).weight;
+      });
+      if (topWeights.every(w => w === topWeights[0])) {
+        const plateauKey = `${ex.name}::${plateauDates[0]}::plateau`;
+        if (!isSuggestionDismissed(plateauKey)) {
+          suggestion += `
+            <div class="suggest-line" style="background:rgba(66,57,47,0.5); border-color:var(--border);">
+              <div>
+                <span>📉 直近6回とも${topWeights[0]}kgのまま停滞気味</span>
+                <div style="font-size:10px; opacity:0.8; margin-top:2px;">デロードを挟む/レップ帯を変える/似た種目に切り替える、のどれか検討してみて</div>
+              </div>
+              <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${plateauKey.replace(/'/g,"\\'")}')">見送る</button>
             </div>
           `;
         }
@@ -725,6 +943,12 @@ function renderExRow(ex, dow, variant, idx){
     metaLine = `<div class="muscle-line">${parts.join(" ・ ")}${ex.bench ? " ・ 🪑 "+esc(ex.bench) : ""}</div>`;
   } else if (ex.bench) {
     metaLine = `<div class="bench-line">🪑 ベンチ: ${esc(ex.bench)}</div>`;
+  }
+  let capacityHint = "";
+  if (exMaster) {
+    capacityHint = exMaster.compound
+      ? `<div class="muscle-line">💪 1セット目の目安: 複合種目なので"あと1〜2回いけそう"のラインで止めるのが安全</div>`
+      : `<div class="muscle-line">💪 1セット目の目安: 単関節種目なので限界(できなくなるまで)までやってOK</div>`;
   }
   const breakdown = renderLastSessionBreakdown(ex.name, !!(exMaster && exMaster.unilateral));
   let warmupLine = "";
@@ -744,6 +968,7 @@ function renderExRow(ex, dow, variant, idx){
           <span class="target">${esc(ex.target)}<br>${ex.sets}セット × ${esc(ex.reps)}</span>
         </div>
         ${metaLine}
+        ${capacityHint}
         ${warmupLine}
         ${breakdown}
         ${suggestion}
@@ -753,6 +978,85 @@ function renderExRow(ex, dow, variant, idx){
   `;
 }
 
+function computeMuscleGroupWeeklyVolume(){
+  const thisWeekKey = weekKeyFor(new Date());
+  const stats = {};
+  logs.forEach(l => {
+    const d = new Date(l.date + "T00:00:00");
+    if (weekKeyFor(d) !== thisWeekKey) return;
+    const ex = exercises.find(e=>e.id===l.exerciseId);
+    if (!ex || !ex.primary) return;
+    stats[ex.primary] = (stats[ex.primary]||0) + l.sets;
+  });
+  return Object.entries(stats).map(([muscle,sets])=>({muscle,sets})).sort((a,b)=>b.sets-a.sets);
+}
+function renderVolumeBalanceCard(){
+  const data = computeMuscleGroupWeeklyVolume();
+  if (data.length === 0) return "";
+  const maxSets = Math.max(...data.map(d=>d.sets));
+  return `
+    <div class="card">
+      <p class="section-label" style="margin:0 0 8px;">🏋️ 今週の部位別セット数</p>
+      ${data.map(d => `
+        <div style="margin-bottom:6px;">
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:2px;">
+            <span>${esc(d.muscle)}</span><span style="color:var(--accent2); font-family:ui-monospace,monospace;">${d.sets}セット</span>
+          </div>
+          <div style="background:var(--surface-alt); border-radius:4px; height:6px; overflow:hidden;">
+            <div style="background:var(--accent); height:100%; width:${Math.round(d.sets/maxSets*100)}%;"></div>
+          </div>
+        </div>
+      `).join("")}
+      <p class="hint" style="margin-top:4px;">メイン部位のみの集計(サブ部位は含まず)。今週(月〜)の記録が対象</p>
+    </div>
+  `;
+}
+function computeWeeklyReview(){
+  const lastMonday = new Date(mondayOf(new Date()));
+  lastMonday.setDate(lastMonday.getDate()-7);
+  let scheduledDays = 0, trainedDays = 0, prCount = 0;
+  const weekDates = [];
+  for (let i=0;i<7;i++){
+    const d = new Date(lastMonday); d.setDate(d.getDate()+i);
+    const dow = d.getDay();
+    const p = program[dow];
+    const dateStr = localDateStr(d);
+    weekDates.push(dateStr);
+    if (!p || p.type === "rest") continue;
+    scheduledDays++;
+    if (logs.some(l=>l.date===dateStr)) trainedDays++;
+  }
+  // その週内での自己ベスト該当件数(週内ログのweightが全期間最大と一致するもの、ユニーク種目+side)
+  const weekLogs = logs.filter(l=>weekDates.includes(l.date));
+  const prSet = new Set();
+  weekLogs.forEach(l=>{
+    const allTimeMax = getAllTimeMax(l.exerciseId, l.side||null);
+    if (allTimeMax !== null && l.weight === allTimeMax) prSet.add(l.exerciseId+"_"+(l.side||""));
+  });
+  // 体組成の週内変化(先週の最初と最後の記録)
+  const metrics = load("ironlog_body_metrics", {});
+  const weekMetricDates = weekDates.filter(d=>metrics[d]);
+  let bodyChange = null;
+  if (weekMetricDates.length >= 2) {
+    const first = metrics[weekMetricDates[0]], last = metrics[weekMetricDates[weekMetricDates.length-1]];
+    if (first.weight!=null && last.weight!=null) bodyChange = (last.weight-first.weight).toFixed(1);
+  }
+  return { scheduledDays, trainedDays, prCount: prSet.size, bodyChange, weekStart: weekDates[0], weekEnd: weekDates[6] };
+}
+function renderWeeklyReviewCard(){
+  const r = computeWeeklyReview();
+  if (r.scheduledDays === 0) return "";
+  return `
+    <div class="card">
+      <p class="section-label" style="margin:0 0 8px;">📋 先週の振り返り(${r.weekStart.slice(5)}〜${r.weekEnd.slice(5)})</p>
+      <div class="grid2">
+        <div><p class="hint" style="margin:0;">トレ実施</p><p style="margin:0; font-weight:800; font-family:ui-monospace,monospace; font-size:17px;">${r.trainedDays}/${r.scheduledDays}日</p></div>
+        <div><p class="hint" style="margin:0;">PR更新</p><p style="margin:0; font-weight:800; font-family:ui-monospace,monospace; color:var(--accent2); font-size:17px;">${r.prCount}件</p></div>
+      </div>
+      ${r.bodyChange !== null ? `<p class="hint" style="margin-top:8px;">体重変化: ${r.bodyChange>0?"+":""}${r.bodyChange}kg</p>` : ""}
+    </div>
+  `;
+}
 function computeMuscleGroupInsights(){
   const allProgramExercises = [];
   Object.entries(program).forEach(([dowStr, p]) => {
@@ -903,6 +1207,14 @@ function renderTodayCard(){
   const dow = new Date().getDay();
   const p = program[dow] || {type:"rest"};
   const deloadBadge = isDeloadWeekKey(window.__weekKey) ? `<p style="margin:0 0 8px; font-size:11px; color:var(--accent2); font-weight:700;">🔻 デロード週(軽めに)</p>` : "";
+  const metricWeekday = getMetricWeekday();
+  const todayHasMetric = !!getBodyMetric(todayStr());
+  const metricBadge = (metricWeekday !== null && metricWeekday === dow && !todayHasMetric) ? `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:8px 10px; background:rgba(185,144,90,0.18); border-radius:8px;">
+      <span style="font-size:12px; font-weight:600; color:var(--accent2);">📏 今日は体重計測日です</span>
+      <button class="apply-btn" style="background:var(--accent2);" onclick="goToBodyMetrics()">記録する</button>
+    </div>
+  ` : "";
   let body = "";
   if (p.type === "main") {
     const variant = window.__weekType === "heavy" ? "heavy" : "reps";
@@ -912,7 +1224,7 @@ function renderTodayCard(){
         <span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span>
         <button class="toggle-btn" onclick="toggleWeekType()">🔁 ${window.__weekType==="heavy"?"重量週":"回数週"}</button>
       </div>
-      ${deloadBadge}
+      ${metricBadge}${deloadBadge}
       <p class="today-title">${esc(p.title)}</p>
       ${renderReorderSuggestion(dow, variant)}
       ${list.map((ex,idx) => renderExRow(ex, dow, variant, idx)).join("")}
@@ -921,7 +1233,7 @@ function renderTodayCard(){
   } else if (p.type === "light") {
     body = `
       <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span></div>
-      ${deloadBadge}
+      ${metricBadge}${deloadBadge}
       <p class="today-title">${esc(p.title)}</p>
       ${renderReorderSuggestion(dow, "exercises")}
       ${(p.exercises||[]).map((ex,idx) => renderExRow(ex, dow, "exercises", idx)).join("")}
@@ -972,6 +1284,10 @@ function renderLogTab(){
     selectedExId = listExercises[0] ? listExercises[0].id : null;
   }
   const selectedEx = exercises.find(e=>e.id===selectedExId);
+  const nextSetSide = (selectedEx && selectedEx.unilateral) ? logSide : null;
+  const nextSetNumber = selectedExId
+    ? logs.filter(l => l.exerciseId===selectedExId && l.date===form.date && (l.side||null)===(nextSetSide||null)).length + 1
+    : 1;
   const opts = listExercises.map(e => `<option value="${e.id}" ${e.id===selectedExId?"selected":""}>${esc(e.name)}</option>`).join("");
   const todaysLogs = logs.filter(l => l.date === form.date).sort((a,b)=> a.id < b.id ? 1 : -1);
   const nameFor = id => (exercises.find(e=>e.id===id)||{}).name || "?";
@@ -983,8 +1299,8 @@ function renderLogTab(){
       </div>
       ${showMemo ? `
         <div class="memo-body">
-          <b>回数週(15回目標)</b>: 全セット15回に余裕(あと2〜3回いけそう)で届いたら次回+2kg。ギリギリならもう1回同じ重量で様子見。<br><br>
-          <b>重量週(6回目標)</b>: 全セット6回に余裕で届いたら次回+2kg。フォームが崩れる手前が上限の目安。<br><br>
+          <b>回数週(15回目標)</b>: 1セット目(その日の割り当て重量)で余裕を持って15回超えられたら次回+2kg。ギリギリならもう1回同じ重量で様子見。<br><br>
+          <b>重量週(6回目標)</b>: 1セット目で余裕を持って6回できたら次回+2kg。フォームが崩れる手前が上限の目安。2・3セット目は自分で重量を上げたり、疲労で回数が落ちたりしてもOK、判定には使われない。<br><br>
           <b>片手/片脚種目</b>: 弱い方の側を基準に判断する。<br><br>
           <b>自重種目(ローラー・プランク等)</b>: 重量じゃなく回数・時間・可動域(ひざコロ→立ちコロ等)で伸ばす。<br><br>
           達成条件を満たすとメニューの種目に⬆️マークで提案が出るから、それを見て判断してOK。
@@ -1003,11 +1319,44 @@ function renderLogTab(){
       </div>
       <p class="hint" style="margin-top:6px;">悪い(1〜2)を付けた日は、重量提案の判断材料から自動で除外される</p>
       <div class="field" style="margin-top:10px; margin-bottom:0;">
-        <label class="field-label">メモ(任意)</label>
-        <input id="memoInput" value="${esc(getMemo(form.date))}" placeholder="例: 右肩が張ってた、フォーム重視で軽めにした" onchange="saveMemo('${form.date}', this.value)">
+        <label class="field-label">メモ(任意・何回でも追加できる)</label>
+        <div class="add-row">
+          <input id="memoInput" placeholder="例: 右肩が張ってた" onkeydown="if(event.key==='Enter'){event.preventDefault();sendMemo('${form.date}');}">
+          <button onclick="sendMemo('${form.date}')">➤</button>
+        </div>
+        ${renderTodayMemos(form.date)}
       </div>
       <button onclick="toggleMemoList()" style="background:none; border:none; color:var(--accent2); font-size:11px; margin-top:8px; padding:0; cursor:pointer;">${showMemoList ? "メモ一覧を閉じる ▲" : "過去のメモ一覧を見る ▼"}</button>
       ${showMemoList ? renderMemoList() : ""}
+      <div class="grid2" id="bodyMetricsSection" style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
+        <div style="grid-column: 1 / -1; display:flex; justify-content:space-between; align-items:center;">
+          <p class="section-label" style="margin:0;">体組成</p>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span class="hint" style="margin:0;">測定曜日:</span>
+            <select style="width:auto; padding:3px 6px; font-size:11px;" onchange="setMetricWeekday(this.value)">
+              <option value="" ${getMetricWeekday()===null?"selected":""}>未設定</option>
+              ${WEEKDAY_JP.map((w,i)=>`<option value="${i}" ${getMetricWeekday()===i?"selected":""}>${w}曜</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">体重(kg)</label>
+          <input id="bodyWeightInput" type="number" inputmode="decimal" step="0.1" value="${(getBodyMetric(form.date)||{}).weight ?? ""}" placeholder="65.0" onchange="saveBodyMetric('${form.date}','weight',this.value)">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">ウェスト(cm)</label>
+          <input type="number" inputmode="decimal" step="0.5" value="${(getBodyMetric(form.date)||{}).waist ?? ""}" placeholder="78.0" onchange="saveBodyMetric('${form.date}','waist',this.value)">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">体脂肪率(%)</label>
+          <input type="number" inputmode="decimal" step="0.1" value="${(getBodyMetric(form.date)||{}).bodyFat ?? ""}" placeholder="18.0" onchange="saveBodyMetric('${form.date}','bodyFat',this.value)">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">筋肉量(kg)</label>
+          <input type="number" inputmode="decimal" step="0.1" value="${(getBodyMetric(form.date)||{}).muscleMass ?? ""}" placeholder="50.0" onchange="saveBodyMetric('${form.date}','muscleMass',this.value)">
+        </div>
+      </div>
+      ${renderBodyMetricReminder()}
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
         <div>
           <p style="margin:0; font-size:12.5px; font-weight:600;">🔻 今週はデロード週</p>
@@ -1016,6 +1365,7 @@ function renderLogTab(){
         <button class="toggle-btn" style="${isDeloadWeekKey(window.__weekKey)?"background:var(--accent2); border-color:var(--accent2); color:#fff;":""}" onclick="toggleDeloadWeek()">${isDeloadWeekKey(window.__weekKey)?"ON":"OFF"}</button>
       </div>
     </div>
+    ${renderSessionSummaryCard()}
     ${renderTodayCard()}
     <div class="card">
       <div class="field">
@@ -1039,6 +1389,11 @@ function renderLogTab(){
         <label class="field-label">日付</label>
         <input id="inDate" type="date" value="${form.date}" onchange="onDateChange(this.value)">
       </div>
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:10px; padding:6px 10px; background:var(--surface-alt); border-radius:8px; width:fit-content;">
+        <span style="font-size:11px; color:var(--text-muted);">次は</span>
+        <span style="font-family:ui-monospace,monospace; font-weight:800; color:var(--accent); font-size:16px;">${nextSetNumber}</span>
+        <span style="font-size:11px; color:var(--text-muted);">セット目${nextSetSide ? `(${nextSetSide==="L"?"左":"右"})` : ""}</span>
+      </div>
       <div class="grid3">
         <div class="field"><label class="field-label">重量(kg)</label><input id="inWeight" type="number" inputmode="decimal" placeholder="15"></div>
         <div class="field"><label class="field-label">回数(秒)</label><input id="inReps" type="number" inputmode="numeric" placeholder="6"></div>
@@ -1050,16 +1405,18 @@ function renderLogTab(){
         <button class="sw-btn" onclick="resetStopwatch()">↺ リセット</button>
       </div>
       <p class="hint">プランク・ローラーなど時間/回数種目は、上のストップウォッチで計測→停止すると回数欄に秒数が自動で入る(重量は0でOK)</p>
+      <button id="flagBtn" class="side-btn ${logFlag?"side-active":""}" style="margin-top:8px; width:100%;" onclick="toggleLogFlag()">⚠️ 違和感あり</button>
       <button class="btn-primary" onclick="addLog()">＋ 記録する</button>
     </div>
     <p class="section-label">${form.date} の記録</p>
+    ${(() => { const dur = getSessionDuration(form.date); return dur ? `<p class="hint" style="margin-top:-4px; margin-bottom:8px;">⏱ 所要時間: ${dur}分</p>` : ""; })()}
     ${(() => {
       const grouped = groupTodaysLogs(todaysLogs);
       if (grouped.length === 0) return '<p class="empty">まだこの日の記録はなし</p>';
       return grouped.map(g => `
         <div class="log-item">
           <div>
-            <p class="name">${esc(nameFor(g.exerciseId))}${g.side ? ` <span style="color:var(--accent2); font-size:11px;">(${g.side==="L"?"左":"右"})</span>` : ""}</p>
+            <p class="name">${esc(nameFor(g.exerciseId))}${g.side ? ` <span style="color:var(--accent2); font-size:11px;">(${g.side==="L"?"左":"右"})</span>` : ""}${g.flag ? ` <span title="違和感あり">⚠️</span>` : ""}</p>
             <p class="stat">${g.weight}kg × ${g.reps}回 × ${g.sets}セット${g.setNumbers.length ? ` <span style="color:var(--text-muted);">(${setNumbersLabel(g.setNumbers)})</span>` : ""}</p>
           </div>
           <button class="del-btn" onclick="deleteLogGroup('${g.ids.join(",")}')">✕</button>
@@ -1175,6 +1532,10 @@ function renderExercisesTab(){
           <input type="checkbox" style="width:auto;" ${ex.unilateral?"checked":""} onchange="toggleUnilateral('${ex.id}', this.checked)">
           左右別に記録する(片手・片脚種目)
         </label>
+        <label style="display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; color:var(--text-muted);">
+          <input type="checkbox" style="width:auto;" ${ex.compound?"checked":""} onchange="toggleCompound('${ex.id}', this.checked)">
+          複合種目(限界まで追い込まず余裕を残す)
+        </label>
       </div>
     `).join("")}
     <div class="card" style="margin-top:16px;">
@@ -1185,6 +1546,11 @@ function renderExercisesTab(){
         <button class="backup-btn" onclick="triggerImport()">⬆️ 読み込む</button>
       </div>
       <input type="file" id="importFileInput" accept="application/json" style="display:none;" onchange="importData(this)">
+    </div>
+    <div class="card" style="margin-top:12px;">
+      <label class="field-label">全記録の削除</label>
+      <p class="hint" style="margin-top:0;">記録(ログ)だけを全部消す。種目・週間メニューの設定はそのまま残る。書き出してからやるのがおすすめ</p>
+      <button class="backup-btn" style="width:100%; color:var(--accent); border-color:var(--accent);" onclick="clearAllLogs()">🗑️ 全記録を削除する</button>
     </div>
   `;
 }
@@ -1207,6 +1573,17 @@ function exportData(){
   showToast("バックアップを書き出した");
 }
 function triggerImport(){ document.getElementById("importFileInput").click(); }
+function clearAllLogs(){
+  if (!confirm("記録(ログ)を全部削除する。この操作は取り消せない。本当に消す?")) return;
+  logs = [];
+  save("ironlog_logs", logs);
+  save("ironlog_dismissed_suggestions", []);
+  save("ironlog_dismissed_reorder", {});
+  save("ironlog_celebrated", []);
+  save("ironlog_dismissed_summary", null);
+  showToast("全記録を削除した");
+  render();
+}
 function importData(fileInput){
   const file = fileInput.files[0];
   if (!file) return;
@@ -1357,8 +1734,8 @@ function renderHeatmapDetail(){
   const p = program[dow];
   const dateLabel = `${d.getMonth()+1}/${d.getDate()}(${WEEKDAY_JP[dow]})`;
   const cond = getCondition(heatmapSelectedDate);
-  const memo = getMemo(heatmapSelectedDate);
-  const extra = `${cond ? CONDITION_EMOJI[cond-1]+" " : ""}${memo ? `💬 ${esc(memo)}` : ""}`;
+  const dayMemos = getMemos(heatmapSelectedDate);
+  const extra = `${cond ? CONDITION_EMOJI[cond-1]+" " : ""}${dayMemos.length ? dayMemos.map(m=>`💬 ${esc(m.text)}`).join(" ") : ""}`;
   let body;
   if (!p || p.type === "rest") {
     body = `<p class="hint" style="margin:0;">休養日</p>`;
@@ -1475,6 +1852,9 @@ function renderExerciseChartCard(ex){
     ? [["左", getAllTimeMax(ex.id,"L")], ["右", getAllTimeMax(ex.id,"R")]]
         .filter(([,v])=>v!==null).map(([lab,v])=>`🏆${lab}${v}kg`).join(" ")
     : (() => { const v = getAllTimeMax(ex.id, null); return v!==null ? `🏆 自己ベスト ${v}kg` : ""; })();
+  const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+  const flagCount = exLogs.filter(l=>l.flag && new Date(l.date+"T00:00:00") >= thirtyDaysAgo).length;
+  const flagLine = flagCount >= 2 ? `<p style="margin:0 0 4px; font-size:10.5px; color:#D97757;">⚠️ 違和感フラグ: 直近30日で${flagCount}回</p>` : "";
   return `
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
@@ -1482,17 +1862,71 @@ function renderExerciseChartCard(ex){
         <p style="margin:0; font-family:ui-monospace,monospace; font-weight:800; color:var(--accent); font-size:15px;">${latest.weight}kg</p>
       </div>
       ${prLine ? `<p style="margin:0 0 4px; font-size:10.5px; color:var(--accent2);">${esc(prLine)}</p>` : ""}
+      ${flagLine}
       ${svg}
       <div style="display:flex; gap:10px; font-size:10px; color:var(--text-muted); margin-top:2px;">${legendHtml}</div>
     </div>
   `;
 }
 
+function metricChangeLabel(values){
+  const withVals = values.filter(v=>v!==null);
+  if (withVals.length < 2) return "";
+  const diff = withVals[withVals.length-1] - withVals[0];
+  const sign = diff > 0 ? "+" : "";
+  return ` <span style="color:${diff<0?'#7FA87F':diff>0?'var(--accent2)':'var(--text-muted)'};">(${sign}${diff.toFixed(1)})</span>`;
+}
+function computeBodyCompComment(metrics){
+  const dates = Object.keys(metrics).sort();
+  const bfEntries = dates.filter(d=>metrics[d].bodyFat!=null).map(d=>({date:d, v:metrics[d].bodyFat}));
+  const mmEntries = dates.filter(d=>metrics[d].muscleMass!=null).map(d=>({date:d, v:metrics[d].muscleMass}));
+  if (bfEntries.length < 2 && mmEntries.length < 2) return null;
+  const bfDiff = bfEntries.length>=2 ? bfEntries[bfEntries.length-1].v - bfEntries[0].v : null;
+  const mmDiff = mmEntries.length>=2 ? mmEntries[mmEntries.length-1].v - mmEntries[0].v : null;
+  if (bfDiff!==null && mmDiff!==null) {
+    if (bfDiff < -0.3 && mmDiff >= -0.2) return "✅ 順調にリコンプできてそう(体脂肪率↓・筋肉量は維持〜増加)";
+    if (bfDiff < -0.3 && mmDiff < -0.2) return "⚠️ 体脂肪と一緒に筋肉量も落ちてきてるかも。カロリーをやや上げるのも検討してもいいかも";
+    if (bfDiff >= 0.3 && mmDiff > 0.2) return "📈 筋肉量も体脂肪率も増加傾向。バルク寄りの推移";
+    if (Math.abs(bfDiff) < 0.3 && mmDiff > 0.2) return "✅ 体脂肪率はほぼ変わらず筋肉量が増加。良いペース";
+    return "様子見でOK、大きな変化はまだ見えてない";
+  }
+  if (bfDiff !== null) return bfDiff < -0.3 ? "体脂肪率が減少傾向" : bfDiff > 0.3 ? "体脂肪率が増加傾向" : "体脂肪率は横ばい";
+  if (mmDiff !== null) return mmDiff > 0.2 ? "筋肉量が増加傾向" : mmDiff < -0.2 ? "筋肉量が減少傾向" : "筋肉量は横ばい";
+  return null;
+}
+function renderBodyMetricsCard(){
+  const metrics = load("ironlog_body_metrics", {});
+  const dates = Object.keys(metrics).sort();
+  if (dates.length === 0) return "";
+  const labels = dates.map(d=>d.slice(5));
+  const weights = dates.map(d=> metrics[d].weight ?? null);
+  const waists = dates.map(d=> metrics[d].waist ?? null);
+  const bodyFats = dates.map(d=> metrics[d].bodyFat ?? null);
+  const muscleMasses = dates.map(d=> metrics[d].muscleMass ?? null);
+  const hasWeight = weights.some(v=>v!==null);
+  const hasWaist = waists.some(v=>v!==null);
+  const hasBodyFat = bodyFats.some(v=>v!==null);
+  const hasMuscle = muscleMasses.some(v=>v!==null);
+  if (!hasWeight && !hasWaist && !hasBodyFat && !hasMuscle) return "";
+  let html = `<div class="card"><p class="section-label" style="margin:0 0 8px;">📉 体組成の推移</p>`;
+  const comment = computeBodyCompComment(metrics);
+  if (comment) html += `<div style="background:var(--surface-alt); border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:12px;">${esc(comment)}</div>`;
+  if (hasWeight) html += `<p class="hint" style="margin:0 0 2px;">体重(kg)${metricChangeLabel(weights)}</p>` + buildLineSVG(labels, [{data:weights, color:"#C1442A"}], 100);
+  if (hasBodyFat) html += `<p class="hint" style="margin:8px 0 2px;">体脂肪率(%)${metricChangeLabel(bodyFats)}</p>` + buildLineSVG(labels, [{data:bodyFats, color:"#B9905A"}], 100);
+  if (hasMuscle) html += `<p class="hint" style="margin:8px 0 2px;">筋肉量(kg)${metricChangeLabel(muscleMasses)}</p>` + buildLineSVG(labels, [{data:muscleMasses, color:"#7FA87F"}], 100);
+  if (hasWaist) html += `<p class="hint" style="margin:8px 0 2px;">ウェスト(cm)${metricChangeLabel(waists)}</p>` + buildLineSVG(labels, [{data:waists, color:"#8B8BC4"}], 100);
+  html += `<p class="hint" style="margin-top:4px;">()内は初回記録からの変化量</p>`;
+  html += `</div>`;
+  return html;
+}
 function renderChartTab(){
   const streak = computeStreak();
   checkMilestoneCelebration(streak);
   let html = renderStreakCard(streak);
+  html += renderWeeklyReviewCard();
   html += renderHeatmapCard();
+  html += renderVolumeBalanceCard();
+  html += renderBodyMetricsCard();
   html += renderMuscleInsightsCard();
   html += `<p class="section-label" style="margin-top:4px;">種目ごとの推移</p>`;
   html += exercises.map(renderExerciseChartCard).join("");
