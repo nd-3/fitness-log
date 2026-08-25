@@ -115,15 +115,15 @@ const DEFAULT_PROGRAM = {
   },
   3: { type: "main", title: "上半身プル",
     heavy: [
-      {name:"ベントオーバーロウ", target:"片手15〜18kg", bench:"", sets:4, reps:"6回"},
-      {name:"シングルアームロウ", target:"片手15〜18kg", bench:"フラット(0度)に片膝・片手で支える", sets:3, reps:"6回(片腕ずつ)"},
-      {name:"ダンベルプルオーバー", target:"両手保持12〜15kg", bench:"フラット(0度)仰向け", sets:3, reps:"8回"},
+      {name:"ベントオーバーロウ", target:"片手14〜18kg", bench:"", sets:4, reps:"6回"},
+      {name:"ベンチ支持ロウ", target:"片手14〜18kg", bench:"20〜30度にうつ伏せ", sets:3, reps:"6回"},
+      {name:"ダンベルプルオーバー", target:"両手保持12〜14kg", bench:"フラット(0度)仰向け", sets:3, reps:"8回"},
       {name:"インクラインダンベルカール", target:"片手8〜10kg", bench:"45〜60度", sets:3, reps:"8回"},
       {name:"ラテラルレイズ", target:"片手6〜8kg", bench:"", sets:3, reps:"8回"},
     ],
     reps: [
       {name:"ベントオーバーロウ", target:"8〜10kg", bench:"", sets:3, reps:"15回"},
-      {name:"シングルアームロウ", target:"10〜12kg", bench:"フラット(0度)に片膝・片手で支える", sets:3, reps:"15回(片腕ずつ)"},
+      {name:"ベンチ支持ロウ", target:"10〜12kg", bench:"20〜30度にうつ伏せ", sets:3, reps:"15回"},
       {name:"ダンベルプルオーバー", target:"両手保持8〜10kg", bench:"フラット(0度)仰向け", sets:3, reps:"12回"},
       {name:"インクラインダンベルカール", target:"片手6〜8kg", bench:"45〜60度", sets:3, reps:"12回"},
       {name:"ラテラルレイズ", target:"4〜6kg", bench:"", sets:3, reps:"15回"},
@@ -143,8 +143,8 @@ const DEFAULT_PROGRAM = {
   },
   6: { type: "main", title: "下半身メイン",
     heavy: [
-      {name:"ゴブレットスクワット", target:"15〜18kg", bench:"", sets:4, reps:"6回"},
-      {name:"ルーマニアンデッドリフト", target:"15〜18kg", bench:"", sets:4, reps:"6回"},
+      {name:"ゴブレットスクワット", target:"14〜18kg", bench:"", sets:4, reps:"6回"},
+      {name:"ルーマニアンデッドリフト", target:"14〜18kg", bench:"", sets:4, reps:"6回"},
       {name:"ブルガリアンスプリットスクワット", target:"片手10〜12kg", bench:"フラット(0度)に後ろ足を乗せる", sets:3, reps:"6回(片脚ずつ)"},
       {name:"腹筋ローラー", target:"自重", bench:"", sets:3, reps:"8〜10回"},
     ],
@@ -157,7 +157,7 @@ const DEFAULT_PROGRAM = {
   },
   0: { type: "main", title: "上半身プッシュ",
     heavy: [
-      {name:"ダンベルベンチプレス", target:"片手12〜15kg", bench:"フラット(0度)", sets:4, reps:"6回"},
+      {name:"ダンベルベンチプレス", target:"片手12〜14kg", bench:"フラット(0度)", sets:4, reps:"6回"},
       {name:"シーテッドショルダープレス", target:"片手10〜12kg", bench:"ほぼ垂直(80〜90度)", sets:3, reps:"6回"},
       {name:"インクラインダンベルプレス", target:"片手10〜12kg", bench:"30〜45度", sets:3, reps:"6回"},
       {name:"ダンベルフライ", target:"片手8〜10kg", bench:"フラット(0度)仰向け", sets:3, reps:"8回"},
@@ -183,6 +183,7 @@ const DEFAULT_EXERCISES_META = [
   {name:"インクラインダンベルプレス", primary:"大胸筋上部", secondary:"三角筋前部・上腕三頭筋", unilateral:false, compound:true},
   {name:"ラテラルレイズ", primary:"三角筋中部", secondary:"", unilateral:false, compound:false},
   {name:"シングルアームロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:true, compound:true},
+  {name:"ベンチ支持ロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:false, compound:true},
   {name:"アームカール", primary:"上腕二頭筋", secondary:"前腕", unilateral:false, compound:false},
   {name:"ヒップリフト", primary:"臀筋", secondary:"ハムストリングス", unilateral:false, compound:true},
   {name:"プランク", primary:"腹直筋・体幹", secondary:"", unilateral:false, compound:false},
@@ -780,6 +781,23 @@ function setDayType(dow, type){
 function addExerciseRow(dow, variant){
   harvestDay(dow);
   program[dow][variant].push({name:"", target:"", bench:"", sets:3, reps:"10回"});
+  render();
+}
+function copyExerciseToOtherVariant(dow, fromVariant, idx){
+  harvestDay(dow);
+  const p = program[dow];
+  const source = p[fromVariant][idx];
+  const toVariant = fromVariant === "heavy" ? "reps" : "heavy";
+  if (!p[toVariant]) p[toVariant] = [];
+  p[toVariant].push({
+    name: source.name,
+    target: source.target,
+    bench: source.bench,
+    sets: source.sets,
+    reps: source.reps,
+  });
+  save("ironlog_program", program);
+  showToast(`${toVariant==="reps"?"回数週":"重量週"}にコピーした。重量とセット/回数だけ書き換えてOK`);
   render();
 }
 function removeExerciseRow(dow, variant, idx){
@@ -1427,6 +1445,8 @@ function renderLogTab(){
 }
 
 function renderExerciseEditRows(dow, variant, list){
+  const canCopy = variant === "heavy" || variant === "reps";
+  const otherLabel = variant === "heavy" ? "→ 回数週にコピー" : "→ 重量週にコピー";
   return (list||[]).map((ex, idx) => `
     <div class="ex-edit-row">
       <div class="ex-edit-top">
@@ -1439,6 +1459,7 @@ function renderExerciseEditRows(dow, variant, list){
         <input id="ex-${dow}-${variant}-${idx}-sets" type="number" value="${ex.sets||3}" placeholder="セット">
         <input id="ex-${dow}-${variant}-${idx}-reps" value="${esc(ex.reps||"")}" placeholder="回数/秒">
       </div>
+      ${canCopy ? `<button class="video-btn" style="width:100%; margin-top:6px; font-size:11px;" onclick="copyExerciseToOtherVariant(${dow},'${variant}',${idx})">${otherLabel}(名前・ベンチ角度そのまま)</button>` : ""}
     </div>
   `).join("");
 }
