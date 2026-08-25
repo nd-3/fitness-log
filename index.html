@@ -972,11 +972,17 @@ function renderExRow(ex, dow, variant, idx){
   let warmupLine = "";
   if (weightRange && weightRange.max > 0) {
     const roundStep = v => Math.round(v/2)*2;
-    const w1 = roundStep(weightRange.max*0.5);
-    const w2 = roundStep(weightRange.max*0.7);
-    const w3 = roundStep(weightRange.max*0.9);
-    const steps = [...new Set([w1,w2,w3])].filter(v=>v>0 && v<weightRange.max);
-    if (steps.length) warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${steps.join("kg → ")}kg → 本番${weightRange.max}kg</div>`;
+    const stages = [
+      {w: roundStep(weightRange.max*0.5), r: "8〜10回"},
+      {w: roundStep(weightRange.max*0.7), r: "5〜6回"},
+      {w: roundStep(weightRange.max*0.9), r: "2〜3回"},
+    ];
+    const seen = new Set();
+    const steps = stages.filter(s => s.w>0 && s.w<weightRange.max && !seen.has(s.w) && seen.add(s.w));
+    if (steps.length) {
+      const stepsText = steps.map(s=>`${s.w}kg×${s.r}`).join(" → ");
+      warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${stepsText} → 本番${weightRange.max}kg</div>`;
+    }
   }
   return `
     <div class="ex-row-wrap">
