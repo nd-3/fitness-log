@@ -542,6 +542,9 @@ function setCondition(date, level){
   const c = load("ironlog_conditions", {});
   c[date] = level;
   save("ironlog_conditions", c);
+  const arr = load("ironlog_excused_days", []);
+  const idx = arr.indexOf(date);
+  if (idx !== -1) { arr.splice(idx,1); save("ironlog_excused_days", arr); }
   render();
 }
 const CONDITION_EMOJI = ["😫","😕","😐","🙂","😃"];
@@ -1037,21 +1040,28 @@ function renderExRow(ex, dow, variant, idx){
 
 function getExerciseSchedule(name){
   const results = [];
-  WEEK_ORDER.forEach(dow => {
+  WEEK_ORDER.forEach((dow, orderRank) => {
     const p = program[dow];
     if (!p) return;
     if (p.type === "light") {
       const idx = (p.exercises||[]).findIndex(e=>e.name===name);
-      if (idx !== -1) results.push({label: WEEKDAY_JP[dow], pos: idx+1, isLight:true});
+      if (idx !== -1) results.push({label: WEEKDAY_JP[dow], pos: idx+1, isLight:true, orderRank});
     } else if (p.type === "main") {
       const hIdx = (p.heavy||[]).findIndex(e=>e.name===name);
       const rIdx = (p.reps||[]).findIndex(e=>e.name===name);
       if (hIdx !== -1 || rIdx !== -1) {
-        results.push({label: WEEKDAY_JP[dow], posHeavy: hIdx!==-1?hIdx+1:null, posReps: rIdx!==-1?rIdx+1:null});
+        results.push({label: WEEKDAY_JP[dow], posHeavy: hIdx!==-1?hIdx+1:null, posReps: rIdx!==-1?rIdx+1:null, orderRank});
       }
     }
   });
   return results;
+}
+function exerciseSortKey(name){
+  const sched = getExerciseSchedule(name);
+  if (sched.length === 0) return [999, 999];
+  const first = sched[0];
+  const pos = first.isLight ? first.pos : Math.min(first.posHeavy ?? 999, first.posReps ?? 999);
+  return [first.orderRank, pos];
 }
 function renderScheduleInfo(name){
   const sched = getExerciseSchedule(name);
@@ -1311,6 +1321,10 @@ function renderTodayCard(){
       </select>
     </div>
   `;
+  const todayIsExcused = isExcusedDate(todayStr());
+  const excusedBadge = (p.type !== "rest" && todayIsExcused)
+    ? `<p style="margin:0 0 8px; font-size:11px; color:var(--text-muted);">😮‍💨 今日は仕方ない日(コンディション欄で設定済み)</p>`
+    : "";
   let body = "";
   if (p.type === "main") {
     const variant = window.__weekType === "heavy" ? "heavy" : "reps";
@@ -1320,7 +1334,7 @@ function renderTodayCard(){
         <span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー${isOverridden ? ' <span style="color:var(--text-muted); font-weight:400;">(実際は'+WEEKDAY_JP[realDow]+'曜)</span>' : ''}</span>
         <button class="toggle-btn" onclick="toggleWeekType()">🔁 ${window.__weekType==="heavy"?"重量週":"回数週"}</button>
       </div>
-      ${daySwitcher}${metricBadge}${deloadBadge}
+      ${daySwitcher}${excusedBadge}${metricBadge}${deloadBadge}
       <p class="today-title">${esc(p.title)}</p>
       ${renderReorderSuggestion(dow, variant)}
       ${list.map((ex,idx) => renderExRow(ex, dow, variant, idx)).join("")}
@@ -1329,7 +1343,7 @@ function renderTodayCard(){
   } else if (p.type === "light") {
     body = `
       <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー${isOverridden ? ' <span style="color:var(--text-muted); font-weight:400;">(実際は'+WEEKDAY_JP[realDow]+'曜)</span>' : ''}</span></div>
-      ${daySwitcher}${metricBadge}${deloadBadge}
+      ${daySwitcher}${excusedBadge}${metricBadge}${deloadBadge}
       <p class="today-title">${esc(p.title)}</p>
       ${renderReorderSuggestion(dow, "exercises")}
       ${(p.exercises||[]).map((ex,idx) => renderExRow(ex, dow, "exercises", idx)).join("")}
@@ -1421,14 +1435,15 @@ function renderLogTab(){
     <div class="card" style="padding:12px 16px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <p class="section-label" style="margin:0;">${form.date} のコンディション</p>
-        ${getCondition(form.date) ? `<span style="font-size:11px; color:var(--text-muted);">記録済み</span>` : ""}
+        ${getCondition(form.date) ? `<span style="font-size:11px; color:var(--text-muted);">記録済み</span>` : isExcusedDate(form.date) ? `<span style="font-size:11px; color:var(--text-muted);">仕方ない日</span>` : ""}
       </div>
       <div style="display:flex; gap:6px; margin-top:8px;">
         ${CONDITION_EMOJI.map((e,i) => `
           <button onclick="setCondition('${form.date}', ${i+1})" style="flex:1; font-size:22px; padding:6px 0; border-radius:8px; background:${getCondition(form.date)===i+1?"var(--accent)":"var(--surface-alt)"}; border:1px solid ${getCondition(form.date)===i+1?"var(--accent)":"var(--border)"}; cursor:pointer;">${e}</button>
         `).join("")}
+        <button onclick="toggleExcused('${form.date}')" title="今日は仕方ない(不可抗力でできなかった)" style="flex:1; font-size:22px; padding:6px 0; border-radius:8px; background:${isExcusedDate(form.date)?"var(--accent2)":"var(--surface-alt)"}; border:1px solid ${isExcusedDate(form.date)?"var(--accent2)":"var(--border)"}; cursor:pointer;">😮‍💨</button>
       </div>
-      <p class="hint" style="margin-top:6px;">悪い(1〜2)を付けた日は、重量提案の判断材料から自動で除外される</p>
+      <p class="hint" style="margin-top:6px;">悪い(1〜2)を付けた日は判断材料から除外。😮‍💨は「不可抗力でできなかった日」の印(ストリークが切れない)</p>
       <div class="field" style="margin-top:10px; margin-bottom:0;">
         <label class="field-label">メモ(任意・何回でも追加できる)</label>
         <div class="add-row">
@@ -1649,7 +1664,10 @@ function renderExercisesTab(){
         <button onclick="addExercise()">＋</button>
       </div>
     </div>
-    ${exercises.map(ex => `
+    ${exercises.slice().sort((a,b)=>{
+      const ka = exerciseSortKey(a.name), kb = exerciseSortKey(b.name);
+      return ka[0]!==kb[0] ? ka[0]-kb[0] : ka[1]-kb[1];
+    }).map(ex => `
       <div class="log-item" style="flex-direction:column; align-items:stretch;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span class="name">${esc(ex.name)}</span>
@@ -1819,6 +1837,22 @@ function renderImportSelector(){
 }
 
 // ---- グラフタブ: 継続ステータス・ヒートマップ・全種目一覧 ----
+function isExcusedDate(dateStr){ return load("ironlog_excused_days", []).includes(dateStr); }
+function toggleExcused(dateStr){
+  const arr = load("ironlog_excused_days", []);
+  const idx = arr.indexOf(dateStr);
+  if (idx === -1) {
+    arr.push(dateStr);
+    const c = load("ironlog_conditions", {});
+    if (c[dateStr]) { delete c[dateStr]; save("ironlog_conditions", c); }
+    showToast("仕方ない日にした");
+  } else {
+    arr.splice(idx,1);
+    showToast("解除した");
+  }
+  save("ironlog_excused_days", arr);
+  render();
+}
 function computeStreak(){
   let streak = 0;
   let d = new Date();
@@ -1829,7 +1863,7 @@ function computeStreak(){
     const dateStr = localDateStr(d);
     const p = program[dow];
     const isToday = dateStr === todayStr();
-    if (p && p.type !== "rest") {
+    if (p && p.type !== "rest" && !isExcusedDate(dateStr)) {
       const hasLog = logs.some(l => l.date === dateStr);
       if (hasLog) {
         streak++;
@@ -1884,6 +1918,7 @@ function buildHeatmapCells(periodDays){
     let status = "pad";
     if (!beforeRange) {
       if (!p || p.type === "rest") status = "rest";
+      else if (isExcusedDate(dateStr)) status = "excused";
       else {
         const hasLog = logs.some(l=>l.date===dateStr);
         if (hasLog) status = "done";
@@ -1924,6 +1959,7 @@ function renderHeatmapHTML(periodDays){
       else if (c.status === "rest") { bg = "#2A2724"; border = "1px solid #2A2724"; }
       else if (c.status === "missed") { bg = "transparent"; border = "1px solid #C1442A"; }
       else if (c.status === "today") { bg = "transparent"; border = "1px dashed #B9905A"; }
+      else if (c.status === "excused") { bg = "#3A342C"; border = "1px dotted #A79C89"; }
       const isSelected = heatmapSelectedDate === c.date;
       const sel = isSelected ? "outline:2px solid #F2ECE1; outline-offset:1px;" : "";
       gridHtml += `<div onclick="selectHeatmapDay('${c.date}')" style="width:11px; height:11px; border-radius:2px; background:${bg}; border:${border}; cursor:pointer; ${sel}"></div>`;
@@ -1948,8 +1984,13 @@ function renderHeatmapDetail(){
     body = `<p class="hint" style="margin:0;">休養日</p>`;
   } else {
     const dayLogs = logs.filter(l=>l.date===heatmapSelectedDate);
+    const isExcused = isExcusedDate(heatmapSelectedDate);
+    const isFuture = new Date(heatmapSelectedDate+"T00:00:00") > new Date(new Date().setHours(0,0,0,0));
     if (dayLogs.length === 0) {
-      body = `<p class="hint" style="margin:0;">この日は記録なし</p>`;
+      body = `<p class="hint" style="margin:0 0 6px;">${isExcused ? "😮‍💨 仕方ない日として記録済み(ストリークに影響なし)" : "この日は記録なし"}</p>`;
+      if (!isFuture) {
+        body += `<button class="del-btn" style="border:1px solid var(--border); border-radius:8px; padding:4px 10px; font-size:11px;" onclick="toggleExcused('${heatmapSelectedDate}')">${isExcused ? "解除する" : "😮‍💨 仕方ない日にする"}</button>`;
+      }
     } else {
       const nameFor = id => (exercises.find(e=>e.id===id)||{}).name || "?";
       body = dayLogs.map(l => `<p style="margin:2px 0; font-size:12px;">${esc(nameFor(l.exerciseId))}${l.side?`(${l.side==="L"?"左":"右"})`:""}: ${l.weight}kg×${l.reps}回×${l.sets}セット</p>`).join("");
@@ -1971,7 +2012,7 @@ function renderHeatmapCard(){
       </div>
       ${renderHeatmapHTML(periodDays)}
       <div style="display:flex; gap:12px; font-size:10px; color:var(--text-muted); margin-top:6px; flex-wrap:wrap;">
-        <span>🟧 トレした</span><span>⬜ 予定してたのに未記録</span><span>┄ 今日(まだ)</span><span>▪ 休養日</span>
+        <span>🟧 トレした</span><span>⬜ 予定してたのに未記録</span><span>┄ 今日(まだ)</span><span>▪ 休養日</span><span>┈ 仕方ない日</span>
       </div>
       ${renderHeatmapDetail()}
     </div>
