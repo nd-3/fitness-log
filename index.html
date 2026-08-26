@@ -177,13 +177,13 @@ const DEFAULT_EXERCISES_META = [
   {name:"ゴブレットスクワット", primary:"大腿四頭筋", secondary:"臀筋・体幹", unilateral:false, compound:true},
   {name:"ダンベルベンチプレス", primary:"大胸筋", secondary:"上腕三頭筋・三角筋前部", unilateral:false, compound:true},
   {name:"シーテッドショルダープレス", primary:"三角筋", secondary:"上腕三頭筋", unilateral:false, compound:true},
-  {name:"ルーマニアンデッドリフト", primary:"ハムストリングス", secondary:"臀筋・脊柱起立筋", unilateral:false, compound:true},
-  {name:"ベントオーバーロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:false, compound:true},
+  {name:"ルーマニアンデッドリフト", primary:"ハムストリングス", secondary:"臀筋・脊柱起立筋", unilateral:false, compound:true, strap:true},
+  {name:"ベントオーバーロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:false, compound:true, strap:true},
   {name:"ブルガリアンスプリットスクワット", primary:"大腿四頭筋", secondary:"臀筋", unilateral:true, compound:true},
   {name:"インクラインダンベルプレス", primary:"大胸筋上部", secondary:"三角筋前部・上腕三頭筋", unilateral:false, compound:true},
   {name:"ラテラルレイズ", primary:"三角筋中部", secondary:"", unilateral:false, compound:false},
-  {name:"シングルアームロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:true, compound:true},
-  {name:"ベンチ支持ロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:false, compound:true},
+  {name:"シングルアームロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:true, compound:true, strap:true},
+  {name:"ベンチ支持ロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:false, compound:true, strap:true},
   {name:"アームカール", primary:"上腕二頭筋", secondary:"前腕", unilateral:false, compound:false},
   {name:"ヒップリフト", primary:"臀筋", secondary:"ハムストリングス", unilateral:false, compound:true},
   {name:"プランク", primary:"腹直筋・体幹", secondary:"", unilateral:false, compound:false},
@@ -223,7 +223,7 @@ function save(key, val){
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
-let exercises = load("ironlog_exercises", DEFAULT_EXERCISES_META.map((m,i)=>({id:"ex_"+i, name:m.name, primary:m.primary, secondary:m.secondary, unilateral:!!m.unilateral, compound:!!m.compound})));
+let exercises = load("ironlog_exercises", DEFAULT_EXERCISES_META.map((m,i)=>({id:"ex_"+i, name:m.name, primary:m.primary, secondary:m.secondary, unilateral:!!m.unilateral, compound:!!m.compound, strap:!!m.strap})));
 let logs = load("ironlog_logs", []);
 let program = load("ironlog_program", DEFAULT_PROGRAM);
 
@@ -245,7 +245,7 @@ function syncExercisesWithProgram(){
   names.forEach(n => {
     if (!exercises.find(e=>e.name===n)) {
       const meta = DEFAULT_EXERCISES_META.find(m=>m.name===n);
-      exercises.push({id: uid("ex"), name:n, primary: meta?meta.primary:"", secondary: meta?meta.secondary:"", unilateral: meta?!!meta.unilateral:false, compound: meta?!!meta.compound:false});
+      exercises.push({id: uid("ex"), name:n, primary: meta?meta.primary:"", secondary: meta?meta.secondary:"", unilateral: meta?!!meta.unilateral:false, compound: meta?!!meta.compound:false, strap: meta?!!meta.strap:false});
       changed = true;
     }
   });
@@ -259,6 +259,7 @@ let form = { date: todayStr() };
 let editingDay = null;
 let showMemo = false;
 let showMemoList = false;
+let showGlossary = false;
 let swRunning = false;
 let swStartTime = 0;
 let swElapsed = 0;
@@ -292,7 +293,7 @@ function toggleWeekType(){
   render();
 }
 function openVideoSearch(name){
-  const q = encodeURIComponent(name + " ダンベル フォーム 正しいやり方");
+  const q = encodeURIComponent(name + " ダンベル");
   window.open("https://www.youtube.com/results?search_query=" + q, "_blank");
 }
 function pickExerciseByName(name){
@@ -304,7 +305,7 @@ function pickExerciseByName(name){
 function addExercise(){
   const val = document.getElementById("newExInput").value.trim();
   if(!val) return;
-  exercises = [...exercises, {id: uid("ex"), name: val, primary:"", secondary:"", unilateral:false, compound:false}];
+  exercises = [...exercises, {id: uid("ex"), name: val, primary:"", secondary:"", unilateral:false, compound:false, strap:false}];
   save("ironlog_exercises", exercises);
   render();
 }
@@ -324,6 +325,13 @@ function toggleCompound(id, checked){
   const ex = exercises.find(e=>e.id===id);
   if (!ex) return;
   ex.compound = checked;
+  save("ironlog_exercises", exercises);
+  render();
+}
+function toggleStrap(id, checked){
+  const ex = exercises.find(e=>e.id===id);
+  if (!ex) return;
+  ex.strap = checked;
   save("ironlog_exercises", exercises);
   render();
 }
@@ -468,6 +476,7 @@ function toggleLogFlag(){
 }
 function toggleMemo(){ showMemo = !showMemo; render(); }
 function toggleMemoList(){ showMemoList = !showMemoList; render(); }
+function toggleGlossary(){ showGlossary = !showGlossary; render(); }
 function getMemos(date){
   const v = load("ironlog_memos", {})[date];
   if (!v) return [];
@@ -968,8 +977,16 @@ function renderExRow(ex, dow, variant, idx){
       ? `<div class="muscle-line">💪 1セット目の目安: 複合種目なので"あと1〜2回いけそう"のラインで止めるのが安全</div>`
       : `<div class="muscle-line">💪 1セット目の目安: 単関節種目なので限界(できなくなるまで)までやってOK</div>`;
   }
+  const strapHint = (exMaster && exMaster.strap) ? `<div class="muscle-line">🧤 ストラップ推奨(握力がボトルネックになりやすい種目)</div>` : "";
+  let breathHint = "";
+  if (exMaster && exMaster.compound) {
+    breathHint = ex.bench
+      ? `<div class="muscle-line">🫁 呼吸: 支えありだが余裕あれば毎レップ絞り出すように吐くのがおすすめ</div>`
+      : `<div class="muscle-line">🫁 呼吸: 毎レップ、歯の隙間からスーッと絞り出すように吐く(体幹が緩みやすい種目)</div>`;
+  }
   const breakdown = renderLastSessionBreakdown(ex.name, !!(exMaster && exMaster.unilateral));
   let warmupLine = "";
+  const scapulaPrefix = (exMaster && exMaster.primary === "広背筋") ? "🦴 肩甲骨スクイーズ×10(5秒キープ・自重) → " : "";
   if (weightRange && weightRange.max > 0) {
     const roundStep = v => Math.round(v/2)*2;
     const stages = [
@@ -981,8 +998,12 @@ function renderExRow(ex, dow, variant, idx){
     const steps = stages.filter(s => s.w>0 && s.w<weightRange.max && !seen.has(s.w) && seen.add(s.w));
     if (steps.length) {
       const stepsText = steps.map(s=>`${s.w}kg×${s.r}`).join(" → ");
-      warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${stepsText} → 本番${weightRange.max}kg</div>`;
+      warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${scapulaPrefix}${stepsText} → 本番${weightRange.max}kg</div>`;
+    } else if (scapulaPrefix) {
+      warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${scapulaPrefix}本番${weightRange.max}kg</div>`;
     }
+  } else if (scapulaPrefix) {
+    warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: 🦴 肩甲骨スクイーズ×10(5秒キープ・自重)</div>`;
   }
   return `
     <div class="ex-row-wrap">
@@ -993,6 +1014,8 @@ function renderExRow(ex, dow, variant, idx){
         </div>
         ${metaLine}
         ${capacityHint}
+        ${strapHint}
+        ${breathHint}
         ${warmupLine}
         ${breakdown}
         ${suggestion}
@@ -1535,6 +1558,20 @@ function renderWeekTab(){
 
 function renderExercisesTab(){
   return `
+    <div class="memo-card">
+      <div class="memo-head" onclick="toggleGlossary()">
+        <span class="eyebrow">🎓 動作パターン解説(スクワット・RDL・ロウ)</span>
+        <span class="day-toggle">${showGlossary ? "閉じる ▲" : "開く ▼"}</span>
+      </div>
+      ${showGlossary ? `
+        <div class="memo-body">
+          <b>スクワット系</b>: 股関節と膝を同時に曲げてしゃがみ、立ち上がる動作。上体は比較的まっすぐに近い状態を保ち、太もも前面(大腿四頭筋)がメイン。膝が前に出て、垂直に近い軌道で動くのが特徴。例: ゴブレットスクワット<br><br>
+          <b>RDL(ルーマニアンデッドリフト)系</b>: 膝はあまり曲げず、股関節だけを支点に上体を前傾させて重りを下ろし、また起こす動作(股関節の"ヒンジ"運動)。太もも裏(ハムストリングス)・お尻(臀筋)がメイン。スクワットと違って膝の曲げ伸ばしはほぼ使わない。例: ルーマニアンデッドリフト<br><br>
+          <b>ロウ系</b>: 上体を前傾させた状態(またはベンチに預けた状態)から、肘を後ろに引いて重りを体に引き寄せる"引く"動作。背中(広背筋)・上腕二頭筋がメイン。例: ベントオーバーロウ、ベンチ支持ロウ<br><br>
+          この3つは「立って(または前傾して)体幹に負荷がかかりやすい」動作パターンやから、呼吸法のヒントで優先的に案内してる。
+        </div>
+      ` : ""}
+    </div>
     <div class="card">
       <label class="field-label">新しい種目を追加</label>
       <div class="add-row">
@@ -1563,11 +1600,15 @@ function renderExercisesTab(){
           <input type="checkbox" style="width:auto;" ${ex.compound?"checked":""} onchange="toggleCompound('${ex.id}', this.checked)">
           複合種目(限界まで追い込まず余裕を残す)
         </label>
+        <label style="display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; color:var(--text-muted);">
+          <input type="checkbox" style="width:auto;" ${ex.strap?"checked":""} onchange="toggleStrap('${ex.id}', this.checked)">
+          ストラップ推奨(握力がボトルネックになりやすい)
+        </label>
       </div>
     `).join("")}
     <div class="card" style="margin-top:16px;">
       <label class="field-label">データのバックアップ</label>
-      <p class="hint" style="margin-top:0;">種目・記録・週間メニューを全部まとめてファイルに書き出し/読み込みできる。ファイルを移す時や機種変の時に使う</p>
+      <p class="hint" style="margin-top:0;">種目・記録・週間メニュー・コンディション・メモ・体組成・デロード設定など、アプリの中身を全部まとめてファイルに書き出し/読み込みできる。ファイルを移す時や機種変の時に使う</p>
       <div class="backup-row">
         <button class="backup-btn" onclick="exportData()">⬇️ 書き出す</button>
         <button class="backup-btn" onclick="triggerImport()">⬆️ 読み込む</button>
@@ -1582,12 +1623,19 @@ function renderExercisesTab(){
   `;
 }
 
+const BACKUP_KEYS = [
+  "ironlog_exercises", "ironlog_logs", "ironlog_program", "ironlog_weektype",
+  "ironlog_dismissed_suggestions", "ironlog_dismissed_reorder", "ironlog_celebrated",
+  "ironlog_dismissed_summary", "ironlog_conditions", "ironlog_memos",
+  "ironlog_body_metrics", "ironlog_metric_weekday", "ironlog_body_metric_reminder_dismissed",
+  "ironlog_deload_weeks",
+];
 function exportData(){
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    exercises, logs, program,
-    weekType: load("ironlog_weektype", null),
-  };
+  const payload = { exportedAt: new Date().toISOString(), data: {} };
+  BACKUP_KEYS.forEach(key => {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) { try { payload.data[key] = JSON.parse(raw); } catch(e) { payload.data[key] = raw; } }
+  });
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -1597,7 +1645,7 @@ function exportData(){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast("バックアップを書き出した");
+  showToast("全データをバックアップした");
 }
 function triggerImport(){ document.getElementById("importFileInput").click(); }
 function clearAllLogs(){
@@ -1617,16 +1665,28 @@ function importData(fileInput){
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const data = JSON.parse(e.target.result);
-      if (!data.exercises || !data.logs) { showToast("ファイルの形式が違うかも"); return; }
-      if (!confirm("今のデータを上書きして読み込む?")) return;
-      exercises = data.exercises;
-      logs = data.logs;
-      program = data.program || DEFAULT_PROGRAM;
-      save("ironlog_exercises", exercises);
-      save("ironlog_logs", logs);
-      save("ironlog_program", program);
-      if (data.weekType) { save("ironlog_weektype", data.weekType); window.__weekType = data.weekType.type; window.__weekKey = data.weekType.weekKey; }
+      const parsed = JSON.parse(e.target.result);
+      const isNewFormat = !!parsed.data;
+      const dataMap = isNewFormat ? parsed.data : parsed; // 旧形式は直下にexercises/logs/programが入ってる
+      if (!dataMap.ironlog_exercises && !dataMap.exercises) { showToast("ファイルの形式が違うかも"); return; }
+      if (!confirm("今のデータを全部上書きして読み込む?")) return;
+      if (isNewFormat) {
+        BACKUP_KEYS.forEach(key => {
+          if (dataMap[key] !== undefined) save(key, dataMap[key]);
+        });
+      } else {
+        // 旧形式(exercises/logs/program/weekTypeのみ)の互換読み込み
+        save("ironlog_exercises", dataMap.exercises);
+        save("ironlog_logs", dataMap.logs);
+        save("ironlog_program", dataMap.program || DEFAULT_PROGRAM);
+        if (dataMap.weekType) save("ironlog_weektype", dataMap.weekType);
+      }
+      // 全変数をストレージから再読み込み
+      exercises = load("ironlog_exercises", []);
+      logs = load("ironlog_logs", []);
+      program = load("ironlog_program", DEFAULT_PROGRAM);
+      const wt = load("ironlog_weektype", null);
+      if (wt) { window.__weekType = wt.type; window.__weekKey = wt.weekKey; }
       selectedExId = exercises[0] ? exercises[0].id : null;
       showToast("データを読み込んだ");
       render();
