@@ -872,6 +872,51 @@ function renderLastSessionBreakdown(name, unilateral){
   const memoLine = memos.length ? memos.map(m=>`💬 ${esc(m.text)}`).join("<br>") : "";
   return out ? `<div class="muscle-line">📝 前回(${lastDate.slice(5)}): ${out}${memoLine ? `<br>${memoLine}` : ""}</div>` : "";
 }
+function buildStaticHints(ex, exMaster){
+  const weightRange = parseTargetKgRange(ex.target);
+  let metaLine = "";
+  if (exMaster && (exMaster.primary || exMaster.secondary)) {
+    const parts = [`🎯 ${esc(exMaster.primary||"")}`];
+    if (exMaster.secondary) parts.push(`副:${esc(exMaster.secondary)}`);
+    metaLine = `<div class="muscle-line">${parts.join(" ・ ")}${ex.bench ? " ・ 🪑 "+esc(ex.bench) : ""}</div>`;
+  } else if (ex.bench) {
+    metaLine = `<div class="bench-line">🪑 ベンチ: ${esc(ex.bench)}</div>`;
+  }
+  let capacityHint = "";
+  if (exMaster) {
+    capacityHint = exMaster.compound
+      ? `<div class="muscle-line">💪 1セット目の目安: 複合種目なので"あと1〜2回いけそう"のラインで止めるのが安全</div>`
+      : `<div class="muscle-line">💪 1セット目の目安: 単関節種目なので限界(できなくなるまで)までやってOK</div>`;
+  }
+  const strapHint = (exMaster && exMaster.strap) ? `<div class="muscle-line">🧤 ストラップ推奨(握力がボトルネックになりやすい種目)</div>` : "";
+  let breathHint = "";
+  if (exMaster && exMaster.compound) {
+    breathHint = ex.bench
+      ? `<div class="muscle-line">🫁 呼吸: 支えありだが余裕あれば毎レップ絞り出すように吐くのがおすすめ</div>`
+      : `<div class="muscle-line">🫁 呼吸: 毎レップ、歯の隙間からスーッと絞り出すように吐く(体幹が緩みやすい種目)</div>`;
+  }
+  let warmupLine = "";
+  const scapulaPrefix = (exMaster && exMaster.primary === "広背筋") ? "🦴 肩甲骨スクイーズ×10(5秒キープ・自重) → " : "";
+  if (weightRange && weightRange.max > 0) {
+    const roundStep = v => Math.round(v/2)*2;
+    const stages = [
+      {w: roundStep(weightRange.max*0.5), r: "8〜10回"},
+      {w: roundStep(weightRange.max*0.7), r: "5〜6回"},
+      {w: roundStep(weightRange.max*0.9), r: "2〜3回"},
+    ];
+    const seen = new Set();
+    const steps = stages.filter(s => s.w>0 && s.w<weightRange.max && !seen.has(s.w) && seen.add(s.w));
+    if (steps.length) {
+      const stepsText = steps.map(s=>`${s.w}kg×${s.r}`).join(" → ");
+      warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${scapulaPrefix}${stepsText} → 本番${weightRange.max}kg</div>`;
+    } else if (scapulaPrefix) {
+      warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${scapulaPrefix}本番${weightRange.max}kg</div>`;
+    }
+  } else if (scapulaPrefix) {
+    warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: 🦴 肩甲骨スクイーズ×10(5秒キープ・自重)</div>`;
+  }
+  return metaLine + capacityHint + strapHint + breathHint + warmupLine;
+}
 function renderExRow(ex, dow, variant, idx){
   const repsTarget = parseRepsTarget(ex.reps);
   const weightRange = parseTargetKgRange(ex.target);
@@ -972,48 +1017,8 @@ function renderExRow(ex, dow, variant, idx){
       }
     }
   }
-  let metaLine = "";
-  if (meta && (meta.primary || meta.secondary)) {
-    const parts = [`🎯 ${esc(meta.primary||"")}`];
-    if (meta.secondary) parts.push(`副:${esc(meta.secondary)}`);
-    metaLine = `<div class="muscle-line">${parts.join(" ・ ")}${ex.bench ? " ・ 🪑 "+esc(ex.bench) : ""}</div>`;
-  } else if (ex.bench) {
-    metaLine = `<div class="bench-line">🪑 ベンチ: ${esc(ex.bench)}</div>`;
-  }
-  let capacityHint = "";
-  if (exMaster) {
-    capacityHint = exMaster.compound
-      ? `<div class="muscle-line">💪 1セット目の目安: 複合種目なので"あと1〜2回いけそう"のラインで止めるのが安全</div>`
-      : `<div class="muscle-line">💪 1セット目の目安: 単関節種目なので限界(できなくなるまで)までやってOK</div>`;
-  }
-  const strapHint = (exMaster && exMaster.strap) ? `<div class="muscle-line">🧤 ストラップ推奨(握力がボトルネックになりやすい種目)</div>` : "";
-  let breathHint = "";
-  if (exMaster && exMaster.compound) {
-    breathHint = ex.bench
-      ? `<div class="muscle-line">🫁 呼吸: 支えありだが余裕あれば毎レップ絞り出すように吐くのがおすすめ</div>`
-      : `<div class="muscle-line">🫁 呼吸: 毎レップ、歯の隙間からスーッと絞り出すように吐く(体幹が緩みやすい種目)</div>`;
-  }
+  const staticHints = buildStaticHints(ex, exMaster);
   const breakdown = renderLastSessionBreakdown(ex.name, !!(exMaster && exMaster.unilateral));
-  let warmupLine = "";
-  const scapulaPrefix = (exMaster && exMaster.primary === "広背筋") ? "🦴 肩甲骨スクイーズ×10(5秒キープ・自重) → " : "";
-  if (weightRange && weightRange.max > 0) {
-    const roundStep = v => Math.round(v/2)*2;
-    const stages = [
-      {w: roundStep(weightRange.max*0.5), r: "8〜10回"},
-      {w: roundStep(weightRange.max*0.7), r: "5〜6回"},
-      {w: roundStep(weightRange.max*0.9), r: "2〜3回"},
-    ];
-    const seen = new Set();
-    const steps = stages.filter(s => s.w>0 && s.w<weightRange.max && !seen.has(s.w) && seen.add(s.w));
-    if (steps.length) {
-      const stepsText = steps.map(s=>`${s.w}kg×${s.r}`).join(" → ");
-      warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${scapulaPrefix}${stepsText} → 本番${weightRange.max}kg</div>`;
-    } else if (scapulaPrefix) {
-      warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: ${scapulaPrefix}本番${weightRange.max}kg</div>`;
-    }
-  } else if (scapulaPrefix) {
-    warmupLine = `<div class="muscle-line">🔥 ウォームアップ目安: 🦴 肩甲骨スクイーズ×10(5秒キープ・自重)</div>`;
-  }
   return `
     <div class="ex-row-wrap">
       <button class="ex-row" onclick="pickExerciseByName('${esc(ex.name).replace(/'/g,"\\'")}')">
@@ -1021,11 +1026,7 @@ function renderExRow(ex, dow, variant, idx){
           <span>${esc(ex.name)}</span>
           <span class="target">${esc(ex.target)}<br>${ex.sets}セット × ${esc(ex.reps)}</span>
         </div>
-        ${metaLine}
-        ${capacityHint}
-        ${strapHint}
-        ${breathHint}
-        ${warmupLine}
+        ${staticHints}
         ${breakdown}
         ${suggestion}
       </button>
@@ -1034,6 +1035,34 @@ function renderExRow(ex, dow, variant, idx){
   `;
 }
 
+function getExerciseSchedule(name){
+  const results = [];
+  WEEK_ORDER.forEach(dow => {
+    const p = program[dow];
+    if (!p) return;
+    if (p.type === "light") {
+      const idx = (p.exercises||[]).findIndex(e=>e.name===name);
+      if (idx !== -1) results.push({label: WEEKDAY_JP[dow], pos: idx+1, isLight:true});
+    } else if (p.type === "main") {
+      const hIdx = (p.heavy||[]).findIndex(e=>e.name===name);
+      const rIdx = (p.reps||[]).findIndex(e=>e.name===name);
+      if (hIdx !== -1 || rIdx !== -1) {
+        results.push({label: WEEKDAY_JP[dow], posHeavy: hIdx!==-1?hIdx+1:null, posReps: rIdx!==-1?rIdx+1:null});
+      }
+    }
+  });
+  return results;
+}
+function renderScheduleInfo(name){
+  const sched = getExerciseSchedule(name);
+  if (sched.length===0) return `<p style="margin:4px 0 0; font-size:11px; color:var(--text-muted);">📅 未使用(週間メニューに入ってない)</p>`;
+  const text = sched.map(s => {
+    if (s.isLight) return `${s.label}曜(${s.pos}番目)`;
+    if (s.posHeavy === s.posReps) return `${s.label}曜(${s.posHeavy}番目)`;
+    return `${s.label}曜(重量${s.posHeavy??"-"}番目/回数${s.posReps??"-"}番目)`;
+  }).join(" ・ ");
+  return `<p style="margin:4px 0 0; font-size:11px; color:var(--accent2);">📅 ${esc(text)}</p>`;
+}
 function computeMuscleGroupWeeklyVolume(){
   const thisWeekKey = weekKeyFor(new Date());
   const stats = {};
@@ -1511,7 +1540,10 @@ function renderLogTab(){
 function renderExerciseEditRows(dow, variant, list){
   const canCopy = variant === "heavy" || variant === "reps";
   const otherLabel = variant === "heavy" ? "→ 回数週にコピー" : "→ 重量週にコピー";
-  return (list||[]).map((ex, idx) => `
+  return (list||[]).map((ex, idx) => {
+    const exMaster = ex.name ? exercises.find(e=>e.name===ex.name) : null;
+    const hints = ex.name ? buildStaticHints(ex, exMaster) : "";
+    return `
     <div class="ex-edit-row">
       <div class="ex-edit-top">
         <input id="ex-${dow}-${variant}-${idx}-name" value="${esc(ex.name||"")}" placeholder="種目名">
@@ -1523,9 +1555,11 @@ function renderExerciseEditRows(dow, variant, list){
         <input id="ex-${dow}-${variant}-${idx}-sets" type="number" value="${ex.sets||3}" placeholder="セット">
         <input id="ex-${dow}-${variant}-${idx}-reps" value="${esc(ex.reps||"")}" placeholder="回数/秒">
       </div>
+      ${hints ? `<div style="margin-top:6px; padding-top:6px; border-top:1px solid var(--border);">${hints}</div>` : ""}
       ${canCopy ? `<button class="video-btn" style="width:100%; margin-top:6px; font-size:11px;" onclick="copyExerciseToOtherVariant(${dow},'${variant}',${idx})">${otherLabel}(名前・ベンチ角度そのまま)</button>` : ""}
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function renderDayEditForm(dow, p){
@@ -1624,6 +1658,7 @@ function renderExercisesTab(){
             <button class="del-btn" onclick="deleteExercise('${ex.id}')">✕</button>
           </div>
         </div>
+        ${renderScheduleInfo(ex.name)}
         <div class="grid2" style="margin-top:8px;">
           <input value="${esc(ex.primary||"")}" placeholder="メイン部位" onchange="updateExerciseMeta('${ex.id}','primary',this.value)">
           <input value="${esc(ex.secondary||"")}" placeholder="サブ部位" onchange="updateExerciseMeta('${ex.id}','secondary',this.value)">
