@@ -182,7 +182,6 @@ const DEFAULT_EXERCISES_META = [
   {name:"ブルガリアンスプリットスクワット", primary:"大腿四頭筋", secondary:"臀筋", unilateral:true, compound:true},
   {name:"インクラインダンベルプレス", primary:"大胸筋上部", secondary:"三角筋前部・上腕三頭筋", unilateral:false, compound:true},
   {name:"ラテラルレイズ", primary:"三角筋中部", secondary:"", unilateral:false, compound:false},
-  {name:"シングルアームロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:true, compound:true, strap:true},
   {name:"ベンチ支持ロウ", primary:"広背筋", secondary:"僧帽筋・上腕二頭筋", unilateral:false, compound:true, strap:true},
   {name:"アームカール", primary:"上腕二頭筋", secondary:"前腕", unilateral:false, compound:false},
   {name:"ヒップリフト", primary:"臀筋", secondary:"ハムストリングス", unilateral:false, compound:true},
@@ -823,11 +822,21 @@ function saveDay(dow){
   render();
 }
 function resetProgram(){
+  save("ironlog_program_undo", program);
   program = JSON.parse(JSON.stringify(DEFAULT_PROGRAM));
   save("ironlog_program", program);
   syncExercisesWithProgram();
   editingDay = null;
-  showToast("初期メニューに戻した");
+  showToast("初期メニューに戻した(↩️元に戻すボタンで復元可)");
+  render();
+}
+function undoProgramReset(){
+  const prev = load("ironlog_program_undo", null);
+  if (!prev) { showToast("戻せる履歴がない"); return; }
+  program = prev;
+  save("ironlog_program", program);
+  save("ironlog_program_undo", null);
+  showToast("直前の状態に戻した");
   render();
 }
 
@@ -1251,27 +1260,38 @@ function renderReorderSuggestion(dow, variant){
   `;
 }
 function renderTodayCard(){
-  const dow = new Date().getDay();
+  const realDow = new Date().getDay();
+  const dow = getEffectiveDow(todayStr());
   const p = program[dow] || {type:"rest"};
+  const isOverridden = getDayOverride(todayStr()) !== null;
   const deloadBadge = isDeloadWeekKey(window.__weekKey) ? `<p style="margin:0 0 8px; font-size:11px; color:var(--accent2); font-weight:700;">🔻 デロード週(軽めに)</p>` : "";
   const metricWeekday = getMetricWeekday();
   const todayHasMetric = !!getBodyMetric(todayStr());
-  const metricBadge = (metricWeekday !== null && metricWeekday === dow && !todayHasMetric) ? `
+  const metricBadge = (metricWeekday !== null && metricWeekday === realDow && !todayHasMetric) ? `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:8px 10px; background:rgba(185,144,90,0.18); border-radius:8px;">
       <span style="font-size:12px; font-weight:600; color:var(--accent2);">📏 今日は体重計測日です</span>
       <button class="apply-btn" style="background:var(--accent2);" onclick="goToBodyMetrics()">記録する</button>
     </div>
   ` : "";
+  const daySwitcher = `
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+      <span class="hint" style="margin:0;">メニュー切替:</span>
+      <select style="width:auto; padding:3px 6px; font-size:11px;" onchange="setDayOverride('${todayStr()}', this.value)">
+        <option value="" ${!isOverridden?"selected":""}>自動(実際の曜日: ${WEEKDAY_JP[realDow]})</option>
+        ${WEEKDAY_JP.map((w,i)=>`<option value="${i}" ${isOverridden && dow===i?"selected":""}>${w}曜のメニュー</option>`).join("")}
+      </select>
+    </div>
+  `;
   let body = "";
   if (p.type === "main") {
     const variant = window.__weekType === "heavy" ? "heavy" : "reps";
     const list = p[variant];
     body = `
       <div class="today-head">
-        <span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span>
+        <span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー${isOverridden ? ' <span style="color:var(--text-muted); font-weight:400;">(実際は'+WEEKDAY_JP[realDow]+'曜)</span>' : ''}</span>
         <button class="toggle-btn" onclick="toggleWeekType()">🔁 ${window.__weekType==="heavy"?"重量週":"回数週"}</button>
       </div>
-      ${metricBadge}${deloadBadge}
+      ${daySwitcher}${metricBadge}${deloadBadge}
       <p class="today-title">${esc(p.title)}</p>
       ${renderReorderSuggestion(dow, variant)}
       ${list.map((ex,idx) => renderExRow(ex, dow, variant, idx)).join("")}
@@ -1279,8 +1299,8 @@ function renderTodayCard(){
     `;
   } else if (p.type === "light") {
     body = `
-      <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span></div>
-      ${metricBadge}${deloadBadge}
+      <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー${isOverridden ? ' <span style="color:var(--text-muted); font-weight:400;">(実際は'+WEEKDAY_JP[realDow]+'曜)</span>' : ''}</span></div>
+      ${daySwitcher}${metricBadge}${deloadBadge}
       <p class="today-title">${esc(p.title)}</p>
       ${renderReorderSuggestion(dow, "exercises")}
       ${(p.exercises||[]).map((ex,idx) => renderExRow(ex, dow, "exercises", idx)).join("")}
@@ -1288,16 +1308,31 @@ function renderTodayCard(){
     `;
   } else {
     body = `
-      <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー</span></div>
+      <div class="today-head"><span class="eyebrow">今日(${WEEKDAY_JP[dow]}) のメニュー${isOverridden ? ' <span style="color:var(--text-muted); font-weight:400;">(実際は'+WEEKDAY_JP[realDow]+'曜)</span>' : ''}</span></div>
+      ${daySwitcher}
       <div class="rest-row">🌙 休養日。無理せずゆっくりで。</div>
     `;
   }
   return `<div class="today-card">${body}</div>`;
 }
 
+function getDayOverride(dateStr){
+  const v = load("ironlog_day_override", {})[dateStr];
+  return (v===undefined || v===null) ? null : v;
+}
+function setDayOverride(dateStr, value){
+  const o = load("ironlog_day_override", {});
+  if (value === "" || value === null) delete o[dateStr]; else o[dateStr] = parseInt(value,10);
+  save("ironlog_day_override", o);
+  render();
+}
+function getEffectiveDow(dateStr){
+  const override = getDayOverride(dateStr);
+  if (override !== null) return override;
+  return new Date(dateStr + "T00:00:00").getDay();
+}
 function programExercisesForDate(dateStr){
-  const d = new Date(dateStr + "T00:00:00");
-  const dow = d.getDay();
+  const dow = getEffectiveDow(dateStr);
   const p = program[dow];
   if (!p || p.type === "rest") return [];
   if (p.type === "light") return (p.exercises||[]).map(e=>e.name);
@@ -1552,7 +1587,8 @@ function renderWeekTab(){
   return `
     <p class="section-label">曜日をタップで開閉。種類の変更や種目の追加・削除、重量/ベンチ角度/セット/回数の編集ができる</p>
     ${WEEK_ORDER.map(dow => renderDayBlock(dow)).join("")}
-    <button class="video-btn" style="width:100%; margin-top:4px; margin-bottom:20px;" onclick="if(confirm('週間メニューを初期状態に戻す?')) resetProgram()">初期メニューに戻す</button>
+    <button class="video-btn" style="width:100%; margin-top:4px;" onclick="if(confirm('週間メニューを初期状態に戻す?')) resetProgram()">初期メニューに戻す</button>
+    ${load("ironlog_program_undo", null) ? `<button class="video-btn" style="width:100%; margin-top:6px; margin-bottom:20px; border-color:var(--accent2); color:var(--accent2);" onclick="undoProgramReset()">↩️ 直前の状態に戻す</button>` : '<div style="margin-bottom:20px;"></div>'}
   `;
 }
 
@@ -1615,6 +1651,7 @@ function renderExercisesTab(){
       </div>
       <input type="file" id="importFileInput" accept="application/json" style="display:none;" onchange="importData(this)">
     </div>
+    ${renderImportSelector()}
     <div class="card" style="margin-top:12px;">
       <label class="field-label">全記録の削除</label>
       <p class="hint" style="margin-top:0;">記録(ログ)だけを全部消す。種目・週間メニューの設定はそのまま残る。書き出してからやるのがおすすめ</p>
@@ -1647,6 +1684,17 @@ function exportData(){
   URL.revokeObjectURL(url);
   showToast("全データをバックアップした");
 }
+const IMPORT_CATEGORIES = [
+  {label: "種目リスト(部位・フラグなど)", keys: ["ironlog_exercises"]},
+  {label: "記録(ログ)", keys: ["ironlog_logs"]},
+  {label: "週間メニュー(目安重量・構成)", keys: ["ironlog_program", "ironlog_weektype"]},
+  {label: "コンディション・メモ", keys: ["ironlog_conditions", "ironlog_memos"]},
+  {label: "体組成(体重・体脂肪率など)", keys: ["ironlog_body_metrics", "ironlog_metric_weekday", "ironlog_body_metric_reminder_dismissed"]},
+  {label: "デロード週の設定", keys: ["ironlog_deload_weeks"]},
+  {label: "提案・演出の履歴", keys: ["ironlog_dismissed_suggestions", "ironlog_dismissed_reorder", "ironlog_celebrated", "ironlog_dismissed_summary"]},
+];
+let pendingImport = null;
+let importSelectedKeys = new Set();
 function triggerImport(){ document.getElementById("importFileInput").click(); }
 function clearAllLogs(){
   if (!confirm("記録(ログ)を全部削除する。この操作は取り消せない。本当に消す?")) return;
@@ -1667,28 +1715,19 @@ function importData(fileInput){
     try {
       const parsed = JSON.parse(e.target.result);
       const isNewFormat = !!parsed.data;
-      const dataMap = isNewFormat ? parsed.data : parsed; // 旧形式は直下にexercises/logs/programが入ってる
-      if (!dataMap.ironlog_exercises && !dataMap.exercises) { showToast("ファイルの形式が違うかも"); return; }
-      if (!confirm("今のデータを全部上書きして読み込む?")) return;
+      const dataMap = isNewFormat ? parsed.data : parsed;
+      let normalized = {};
       if (isNewFormat) {
-        BACKUP_KEYS.forEach(key => {
-          if (dataMap[key] !== undefined) save(key, dataMap[key]);
-        });
+        normalized = dataMap;
       } else {
-        // 旧形式(exercises/logs/program/weekTypeのみ)の互換読み込み
-        save("ironlog_exercises", dataMap.exercises);
-        save("ironlog_logs", dataMap.logs);
-        save("ironlog_program", dataMap.program || DEFAULT_PROGRAM);
-        if (dataMap.weekType) save("ironlog_weektype", dataMap.weekType);
+        if (dataMap.exercises) normalized.ironlog_exercises = dataMap.exercises;
+        if (dataMap.logs) normalized.ironlog_logs = dataMap.logs;
+        if (dataMap.program) normalized.ironlog_program = dataMap.program;
+        if (dataMap.weekType) normalized.ironlog_weektype = dataMap.weekType;
       }
-      // 全変数をストレージから再読み込み
-      exercises = load("ironlog_exercises", []);
-      logs = load("ironlog_logs", []);
-      program = load("ironlog_program", DEFAULT_PROGRAM);
-      const wt = load("ironlog_weektype", null);
-      if (wt) { window.__weekType = wt.type; window.__weekKey = wt.weekKey; }
-      selectedExId = exercises[0] ? exercises[0].id : null;
-      showToast("データを読み込んだ");
+      if (!normalized.ironlog_exercises && !normalized.ironlog_logs) { showToast("ファイルの形式が違うかも"); return; }
+      pendingImport = normalized;
+      importSelectedKeys = new Set(Object.keys(normalized));
       render();
     } catch(err) {
       showToast("読み込みエラー");
@@ -1696,6 +1735,52 @@ function importData(fileInput){
   };
   reader.readAsText(file);
   fileInput.value = "";
+}
+function toggleImportCategory(catIdx){
+  const cat = IMPORT_CATEGORIES[catIdx];
+  const allSelected = cat.keys.every(k => importSelectedKeys.has(k));
+  if (allSelected) cat.keys.forEach(k => importSelectedKeys.delete(k));
+  else cat.keys.forEach(k => { if (pendingImport[k] !== undefined) importSelectedKeys.add(k); });
+  render();
+}
+function confirmImport(){
+  if (!pendingImport) return;
+  importSelectedKeys.forEach(key => {
+    if (pendingImport[key] !== undefined) save(key, pendingImport[key]);
+  });
+  exercises = load("ironlog_exercises", exercises);
+  logs = load("ironlog_logs", logs);
+  program = load("ironlog_program", program);
+  const wt = load("ironlog_weektype", null);
+  if (wt) { window.__weekType = wt.type; window.__weekKey = wt.weekKey; }
+  selectedExId = exercises[0] ? exercises[0].id : null;
+  pendingImport = null;
+  showToast("選択した項目を読み込んだ");
+  render();
+}
+function cancelImport(){ pendingImport = null; render(); }
+function renderImportSelector(){
+  if (!pendingImport) return "";
+  return `
+    <div class="card" style="border-color:var(--accent2);">
+      <p class="section-label" style="margin:0 0 8px;">📥 読み込む項目を選択(それ以外は今のまま)</p>
+      ${IMPORT_CATEGORIES.map((cat, idx) => {
+        const available = cat.keys.some(k => pendingImport[k] !== undefined);
+        if (!available) return "";
+        const checked = cat.keys.every(k => importSelectedKeys.has(k));
+        return `
+          <label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px;">
+            <input type="checkbox" style="width:auto;" ${checked?"checked":""} onchange="toggleImportCategory(${idx})">
+            ${esc(cat.label)}
+          </label>
+        `;
+      }).join("")}
+      <div class="backup-row" style="margin-top:10px;">
+        <button class="backup-btn" style="background:var(--accent); color:#fff;" onclick="confirmImport()">読み込む</button>
+        <button class="backup-btn" onclick="cancelImport()">キャンセル</button>
+      </div>
+    </div>
+  `;
 }
 
 // ---- グラフタブ: 継続ステータス・ヒートマップ・全種目一覧 ----
