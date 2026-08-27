@@ -728,7 +728,7 @@ function positionNote(exerciseId, recentDates){
   if (typical - pos >= 2) return "(いつもよりだいぶ早い種目だった。フレッシュな状態での結果)";
   return "";
 }
-function applySuggestedWeight(dow, variant, idx, newWeight){
+function applySuggestedWeight(dow, variant, idx, newWeight, dismissKey){
   const p = program[dow];
   const arr = variant === "exercises" ? p.exercises : p[variant];
   const ex = arr[idx];
@@ -736,6 +736,13 @@ function applySuggestedWeight(dow, variant, idx, newWeight){
   const prefix = prefixMatch ? prefixMatch[1] : "";
   ex.target = `${prefix}${newWeight}kg`;
   save("ironlog_program", program);
+  if (dismissKey) {
+    const dismissed = load("ironlog_dismissed_suggestions", []);
+    if (!dismissed.includes(dismissKey)) {
+      dismissed.push(dismissKey);
+      save("ironlog_dismissed_suggestions", dismissed);
+    }
+  }
   showToast(ex.name + "の目安を更新した");
   render();
 }
@@ -954,7 +961,7 @@ function renderExRow(ex, dow, variant, idx){
                 ${noteHtml}
               </div>
               <div style="display:flex; gap:4px; flex-shrink:0;">
-                <button class="apply-btn" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW})">反映</button>
+                <button class="apply-btn" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW},'${dismissKey.replace(/'/g,"\\'")}')">反映</button>
                 <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${dismissKey.replace(/'/g,"\\'")}')">見送る</button>
               </div>
             </div>
@@ -972,7 +979,7 @@ function renderExRow(ex, dow, variant, idx){
                 ${noteHtml}
               </div>
               <div style="display:flex; gap:4px; flex-shrink:0;">
-                <button class="apply-btn" style="background:var(--accent2);" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW})">反映</button>
+                <button class="apply-btn" style="background:var(--accent2);" onclick="event.stopPropagation();applySuggestedWeight(${dow},'${variant}',${idx},${nextW},'${dismissKey.replace(/'/g,"\\'")}')">反映</button>
                 <button class="apply-btn" style="background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border);" onclick="event.stopPropagation();dismissSuggestion('${dismissKey.replace(/'/g,"\\'")}')">見送る</button>
               </div>
             </div>
