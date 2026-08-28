@@ -92,6 +92,7 @@
   <button data-tab="log" onclick="setTab('log')">📋<span>記録</span></button>
   <button data-tab="week" onclick="setTab('week')">🗓️<span>週間</span></button>
   <button data-tab="chart" onclick="setTab('chart')">📈<span>グラフ</span></button>
+  <button data-tab="body" onclick="setTab('body')">⚖️<span>体組成</span></button>
   <button data-tab="exercises" onclick="setTab('exercises')">🏋️<span>種目</span></button>
 </nav>
 
@@ -556,6 +557,14 @@ function saveBodyMetric(date, field, value){
   if (v === null) delete m[date][field]; else m[date][field] = v;
   if (Object.keys(m[date]).length === 0) delete m[date];
   save("ironlog_body_metrics", m);
+  render();
+}
+function sendBodyMetric(date, field){
+  const idMap = {weight:"bodyWeightInput", bodyFat:"bodyFatInput", muscleMass:"bodyMuscleInput", visceralFat:"bodyVisceralInput"};
+  const inp = document.getElementById(idMap[field]);
+  if (!inp || inp.value === "") return;
+  saveBodyMetric(date, field, inp.value);
+  showToast("記録した");
 }
 function getMetricWeekday(){ return load("ironlog_metric_weekday", null); }
 function setMetricWeekday(v){
@@ -563,11 +572,9 @@ function setMetricWeekday(v){
   render();
 }
 function goToBodyMetrics(){
-  tab = "log";
+  tab = "body";
   render();
   setTimeout(()=>{
-    const el = document.getElementById("bodyMetricsSection");
-    if (el) el.scrollIntoView({behavior:"smooth", block:"center"});
     const inp = document.getElementById("bodyWeightInput");
     if (inp) inp.focus();
   }, 50);
@@ -1461,35 +1468,6 @@ function renderLogTab(){
       </div>
       <button onclick="toggleMemoList()" style="background:none; border:none; color:var(--accent2); font-size:11px; margin-top:8px; padding:0; cursor:pointer;">${showMemoList ? "メモ一覧を閉じる ▲" : "過去のメモ一覧を見る ▼"}</button>
       ${showMemoList ? renderMemoList() : ""}
-      <div class="grid2" id="bodyMetricsSection" style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
-        <div style="grid-column: 1 / -1; display:flex; justify-content:space-between; align-items:center;">
-          <p class="section-label" style="margin:0;">体組成</p>
-          <div style="display:flex; align-items:center; gap:4px;">
-            <span class="hint" style="margin:0;">測定曜日:</span>
-            <select style="width:auto; padding:3px 6px; font-size:11px;" onchange="setMetricWeekday(this.value)">
-              <option value="" ${getMetricWeekday()===null?"selected":""}>未設定</option>
-              ${WEEKDAY_JP.map((w,i)=>`<option value="${i}" ${getMetricWeekday()===i?"selected":""}>${w}曜</option>`).join("")}
-            </select>
-          </div>
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label class="field-label">体重(kg)</label>
-          <input id="bodyWeightInput" type="number" inputmode="decimal" step="0.1" value="${(getBodyMetric(form.date)||{}).weight ?? ""}" placeholder="65.0" onchange="saveBodyMetric('${form.date}','weight',this.value)">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label class="field-label">ウェスト(cm)</label>
-          <input type="number" inputmode="decimal" step="0.5" value="${(getBodyMetric(form.date)||{}).waist ?? ""}" placeholder="78.0" onchange="saveBodyMetric('${form.date}','waist',this.value)">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label class="field-label">体脂肪率(%)</label>
-          <input type="number" inputmode="decimal" step="0.1" value="${(getBodyMetric(form.date)||{}).bodyFat ?? ""}" placeholder="18.0" onchange="saveBodyMetric('${form.date}','bodyFat',this.value)">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label class="field-label">筋肉量(kg)</label>
-          <input type="number" inputmode="decimal" step="0.1" value="${(getBodyMetric(form.date)||{}).muscleMass ?? ""}" placeholder="50.0" onchange="saveBodyMetric('${form.date}','muscleMass',this.value)">
-        </div>
-      </div>
-      ${renderBodyMetricReminder()}
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
         <div>
           <p style="margin:0; font-size:12.5px; font-weight:600;">🔻 今週はデロード週</p>
@@ -2149,27 +2127,66 @@ function computeBodyCompComment(metrics){
   if (mmDiff !== null) return mmDiff > 0.2 ? "筋肉量が増加傾向" : mmDiff < -0.2 ? "筋肉量が減少傾向" : "筋肉量は横ばい";
   return null;
 }
+function renderBodyTab(){
+  return `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <p class="section-label" style="margin:0;">${form.date} の記録</p>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <span class="hint" style="margin:0;">測定曜日:</span>
+          <select style="width:auto; padding:3px 6px; font-size:11px;" onchange="setMetricWeekday(this.value)">
+            <option value="" ${getMetricWeekday()===null?"selected":""}>未設定</option>
+            ${WEEKDAY_JP.map((w,i)=>`<option value="${i}" ${getMetricWeekday()===i?"selected":""}>${w}曜</option>`).join("")}
+          </select>
+        </div>
+      </div>
+      ${[
+        {field:"weight", label:"体重(kg)", placeholder:"65.0", inputId:"bodyWeightInput"},
+        {field:"bodyFat", label:"体脂肪率(%)", placeholder:"18.0", inputId:"bodyFatInput"},
+        {field:"muscleMass", label:"骨格筋量(kg)", placeholder:"30.0", inputId:"bodyMuscleInput"},
+        {field:"visceralFat", label:"内臓脂肪", placeholder:"6.0", inputId:"bodyVisceralInput"},
+      ].map(f => {
+        const current = (getBodyMetric(form.date)||{})[f.field];
+        return `
+          <div class="field" style="margin-bottom:10px;">
+            <label class="field-label">${f.label}${current!=null ? ` <span style="color:var(--accent2);">現在: ${current}</span> <button class="del-btn" style="padding:0 4px;" onclick="saveBodyMetric('${form.date}','${f.field}',''); event.stopPropagation();">✕</button>` : ""}</label>
+            <div class="add-row">
+              <input id="${f.inputId}" type="number" inputmode="decimal" step="0.1" placeholder="${f.placeholder}" onkeydown="if(event.key==='Enter'){event.preventDefault();sendBodyMetric('${form.date}','${f.field}');}">
+              <button onclick="sendBodyMetric('${form.date}','${f.field}')">➤</button>
+            </div>
+          </div>
+        `;
+      }).join("")}
+      <div class="field" style="margin-bottom:0;">
+        <label class="field-label">日付</label>
+        <input type="date" value="${form.date}" onchange="onDateChange(this.value)">
+      </div>
+    </div>
+    ${renderBodyMetricReminder()}
+    ${renderBodyMetricsCard()}
+  `;
+}
 function renderBodyMetricsCard(){
   const metrics = load("ironlog_body_metrics", {});
   const dates = Object.keys(metrics).sort();
   if (dates.length === 0) return "";
   const labels = dates.map(d=>d.slice(5));
   const weights = dates.map(d=> metrics[d].weight ?? null);
-  const waists = dates.map(d=> metrics[d].waist ?? null);
   const bodyFats = dates.map(d=> metrics[d].bodyFat ?? null);
   const muscleMasses = dates.map(d=> metrics[d].muscleMass ?? null);
+  const visceralFats = dates.map(d=> metrics[d].visceralFat ?? null);
   const hasWeight = weights.some(v=>v!==null);
-  const hasWaist = waists.some(v=>v!==null);
   const hasBodyFat = bodyFats.some(v=>v!==null);
   const hasMuscle = muscleMasses.some(v=>v!==null);
-  if (!hasWeight && !hasWaist && !hasBodyFat && !hasMuscle) return "";
+  const hasVisceral = visceralFats.some(v=>v!==null);
+  if (!hasWeight && !hasBodyFat && !hasMuscle && !hasVisceral) return "";
   let html = `<div class="card"><p class="section-label" style="margin:0 0 8px;">📉 体組成の推移</p>`;
   const comment = computeBodyCompComment(metrics);
   if (comment) html += `<div style="background:var(--surface-alt); border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:12px;">${esc(comment)}</div>`;
   if (hasWeight) html += `<p class="hint" style="margin:0 0 2px;">体重(kg)${metricChangeLabel(weights)}</p>` + buildLineSVG(labels, [{data:weights, color:"#C1442A"}], 100);
   if (hasBodyFat) html += `<p class="hint" style="margin:8px 0 2px;">体脂肪率(%)${metricChangeLabel(bodyFats)}</p>` + buildLineSVG(labels, [{data:bodyFats, color:"#B9905A"}], 100);
-  if (hasMuscle) html += `<p class="hint" style="margin:8px 0 2px;">筋肉量(kg)${metricChangeLabel(muscleMasses)}</p>` + buildLineSVG(labels, [{data:muscleMasses, color:"#7FA87F"}], 100);
-  if (hasWaist) html += `<p class="hint" style="margin:8px 0 2px;">ウェスト(cm)${metricChangeLabel(waists)}</p>` + buildLineSVG(labels, [{data:waists, color:"#8B8BC4"}], 100);
+  if (hasMuscle) html += `<p class="hint" style="margin:8px 0 2px;">骨格筋量(kg)${metricChangeLabel(muscleMasses)}</p>` + buildLineSVG(labels, [{data:muscleMasses, color:"#7FA87F"}], 100);
+  if (hasVisceral) html += `<p class="hint" style="margin:8px 0 2px;">内臓脂肪${metricChangeLabel(visceralFats)}</p>` + buildLineSVG(labels, [{data:visceralFats, color:"#8B8BC4"}], 100);
   html += `<p class="hint" style="margin-top:4px;">()内は初回記録からの変化量</p>`;
   html += `</div>`;
   return html;
@@ -2181,7 +2198,6 @@ function renderChartTab(){
   html += renderWeeklyReviewCard();
   html += renderHeatmapCard();
   html += renderVolumeBalanceCard();
-  html += renderBodyMetricsCard();
   html += renderMuscleInsightsCard();
   html += `<p class="section-label" style="margin-top:4px;">種目ごとの推移</p>`;
   html += exercises.map(renderExerciseChartCard).join("");
@@ -2194,6 +2210,7 @@ function render(){
   else if (tab === "week") app.innerHTML = renderWeekTab();
   else if (tab === "exercises") app.innerHTML = renderExercisesTab();
   else if (tab === "chart") app.innerHTML = renderChartTab();
+  else if (tab === "body") app.innerHTML = renderBodyTab();
   document.querySelectorAll("nav.tabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
 }
 render();
