@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>IRON LOG - 筋トレ記録</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1E1C1A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IRON LOG">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <style>
   :root {
     --bg: #1E1C1A; --surface: #28241F; --surface-alt: #332D26; --border: #42392F;
@@ -412,7 +419,7 @@ function addLog(){
   if(!selectedExId || w==="" || r==="" || s==="") return;
   const selectedEx = exercises.find(e=>e.id===selectedExId);
   const side = (selectedEx && selectedEx.unilateral) ? logSide : null;
-  const setNumber = logs.filter(l => l.exerciseId===selectedExId && l.date===d && (l.side||null)===(side||null)).length + 1;
+  const setNumber = Math.max(0, ...logs.filter(l => l.exerciseId===selectedExId && l.date===d && (l.side||null)===(side||null)).map(l=>l.setNumber||0)) + 1;
   const newWeight = parseFloat(w);
   const prevMax = getAllTimeMax(selectedExId, side);
   const isPR = prevMax !== null && newWeight > prevMax;
@@ -686,12 +693,15 @@ function sessionOverJump(date, exerciseId){
   }
   return null;
 }
-function getRecentSessionDates(exerciseId, n){
+function getRecentSessionDates(exerciseId, n, weekTypeFilter){
   const conditions = load("ironlog_conditions", {});
-  const dates = [...new Set(logs.filter(l=>l.exerciseId===exerciseId).map(l=>l.date))]
+  let dates = [...new Set(logs.filter(l=>l.exerciseId===exerciseId).map(l=>l.date))]
     .filter(d => { const c = conditions[d]; return !(c && c<=2); })
-    .filter(d => !isDateInDeloadWeek(d))
-    .sort().reverse();
+    .filter(d => !isDateInDeloadWeek(d));
+  if (weekTypeFilter) {
+    dates = dates.filter(d => getWeekTypeForDate(d) === weekTypeFilter);
+  }
+  dates = dates.sort().reverse();
   return dates.slice(0, n);
 }
 function sessionAllMet(date, exerciseId, repsTarget, weightMax){
@@ -864,13 +874,23 @@ function circleNum(n){
 function formatRestTime(sec){
   return sec < 60 ? `${sec}秒` : `${Math.floor(sec/60)}分${sec%60}秒`;
 }
-function renderLastSessionBreakdown(name, unilateral){
+function renderLastSessionBreakdown(name, unilateral, weekTypeFilter){
   const ex = exercises.find(e=>e.name===name);
   if (!ex) return "";
   const exLogs = logs.filter(l=>l.exerciseId===ex.id);
   if (exLogs.length===0) return "";
-  const lastDate = exLogs.map(l=>l.date).sort().pop();
-  const dayLogs = exLogs.filter(l=>l.date===lastDate);
+  let candidates = exLogs;
+  let mismatchNote = "";
+  if (weekTypeFilter) {
+    const sameType = exLogs.filter(l => getWeekTypeForDate(l.date) === weekTypeFilter);
+    if (sameType.length > 0) {
+      candidates = sameType;
+    } else {
+      mismatchNote = weekTypeFilter === "heavy" ? "(前回は回数週の記録)" : "(前回は重量週の記録)";
+    }
+  }
+  const lastDate = candidates.map(l=>l.date).sort().pop();
+  const dayLogs = candidates.filter(l=>l.date===lastDate);
   const fmt = arr => arr.map((l,i)=>{
     const rest = (i>0 && l.timestamp && arr[i-1].timestamp) ? Math.round((l.timestamp-arr[i-1].timestamp)/1000) : null;
     return `${circleNum(l.setNumber||i+1)}${l.weight}kg×${l.reps}${rest!==null && rest>0 && rest<1800 ? `<span style="opacity:0.65;">(休憩${formatRestTime(rest)})</span>` : ""}`;
@@ -887,7 +907,7 @@ function renderLastSessionBreakdown(name, unilateral){
   }
   const memos = getMemos(lastDate);
   const memoLine = memos.length ? memos.map(m=>`💬 ${esc(m.text)}`).join("<br>") : "";
-  return out ? `<div class="muscle-line">📝 前回(${lastDate.slice(5)}): ${out}${memoLine ? `<br>${memoLine}` : ""}</div>` : "";
+  return out ? `<div class="muscle-line">📝 前回(${lastDate.slice(5)})${mismatchNote}: ${out}${memoLine ? `<br>${memoLine}` : ""}</div>` : "";
 }
 function buildStaticHints(ex, exMaster){
   const weightRange = parseTargetKgRange(ex.target);
@@ -940,9 +960,10 @@ function renderExRow(ex, dow, variant, idx){
   const lastLog = getLastLogForExerciseName(ex.name);
   const meta = getExMeta(ex.name);
   const exMaster = exercises.find(e=>e.name===ex.name);
+  const weekTypeFilter = (variant === "heavy" || variant === "reps") ? variant : null;
   let suggestion = "";
   if (repsTarget && weightRange && exMaster) {
-    const recentDates = getRecentSessionDates(exMaster.id, 2);
+    const recentDates = getRecentSessionDates(exMaster.id, 2, weekTypeFilter);
     if (recentDates.length >= 2) {
       const note = positionNote(exMaster.id, recentDates);
       const noteHtml = note ? `<div style="font-size:10px; opacity:0.8; margin-top:2px;">${note}</div>` : "";
@@ -995,7 +1016,7 @@ function renderExRow(ex, dow, variant, idx){
       }
     }
     // 直近セッションで、セット間の重量アップで回数が崩壊してないかチェック
-    const jumpDates = getRecentSessionDates(exMaster.id, 2);
+    const jumpDates = getRecentSessionDates(exMaster.id, 2, weekTypeFilter);
     if (jumpDates.length >= 2 && jumpDates.every(d => sessionOverJump(d, exMaster.id))) {
       const jumpKey = `${ex.name}::${jumpDates[0]}::jump`;
       if (!isSuggestionDismissed(jumpKey)) {
@@ -1012,7 +1033,7 @@ function renderExRow(ex, dow, variant, idx){
       }
     }
     // プラトー検知: 直近6セッション(コンディション不良・デロード週除外)でトップセット重量が一切変わってないか
-    const plateauDates = getRecentSessionDates(exMaster.id, 6);
+    const plateauDates = getRecentSessionDates(exMaster.id, 6, weekTypeFilter);
     if (plateauDates.length >= 6) {
       const topWeights = plateauDates.map(d => {
         const dayLogs = logs.filter(l=>l.exerciseId===exMaster.id && l.date===d);
@@ -1035,7 +1056,7 @@ function renderExRow(ex, dow, variant, idx){
     }
   }
   const staticHints = buildStaticHints(ex, exMaster);
-  const breakdown = renderLastSessionBreakdown(ex.name, !!(exMaster && exMaster.unilateral));
+  const breakdown = renderLastSessionBreakdown(ex.name, !!(exMaster && exMaster.unilateral), weekTypeFilter);
   return `
     <div class="ex-row-wrap">
       <button class="ex-row" onclick="pickExerciseByName('${esc(ex.name).replace(/'/g,"\\'")}')">
@@ -1185,7 +1206,8 @@ function computeMuscleGroupInsights(){
     if (!repsTarget || !weightRange) return;
     const dates = [...new Set(logs.filter(l=>l.exerciseId===exMaster.id).map(l=>l.date))]
       .filter(d => { const c = conditions[d]; return !(c && c<=2); })
-      .filter(d => !isDateInDeloadWeek(d));
+      .filter(d => !isDateInDeloadWeek(d))
+      .filter(d => getWeekTypeForDate(d) === "heavy");
     dates.forEach(d => {
       const pos = getSessionPosition(d, exMaster.id);
       if (pos===null) return;
@@ -1201,7 +1223,7 @@ function computeMuscleGroupInsights(){
   Object.entries(muscleStats).forEach(([muscle, s]) => {
     if (s.earlyTotal>=2 && s.lateTotal>=2 && s.names.size>=2) {
       const diff = (1-(s.lateSuccess/s.lateTotal)) - (1-(s.earlySuccess/s.earlyTotal));
-      if (diff >= 0.3) insights.push({muscle, diff, exercises:[...s.names]});
+      if (diff >= 0.34) insights.push({muscle, diff, exercises:[...s.names]});
     }
   });
   insights.sort((a,b)=>b.diff-a.diff);
@@ -1235,7 +1257,8 @@ function computeReorderSuggestion(dow, variant){
     const conditions = load("ironlog_conditions", {});
     const dates = [...new Set(logs.filter(l=>l.exerciseId===exMaster.id).map(l=>l.date))]
       .filter(d => { const c = conditions[d]; return !(c && c<=2); })
-      .filter(d => !isDateInDeloadWeek(d));
+      .filter(d => !isDateInDeloadWeek(d))
+      .filter(d => (variant === "heavy" || variant === "reps") ? getWeekTypeForDate(d) === variant : true);
     let earlyTotal=0, earlySuccess=0, lateTotal=0, lateSuccess=0;
     dates.forEach(d => {
       const pos = getSessionPosition(d, exMaster.id);
@@ -1425,7 +1448,7 @@ function renderLogTab(){
   const selectedEx = exercises.find(e=>e.id===selectedExId);
   const nextSetSide = (selectedEx && selectedEx.unilateral) ? logSide : null;
   const nextSetNumber = selectedExId
-    ? logs.filter(l => l.exerciseId===selectedExId && l.date===form.date && (l.side||null)===(nextSetSide||null)).length + 1
+    ? Math.max(0, ...logs.filter(l => l.exerciseId===selectedExId && l.date===form.date && (l.side||null)===(nextSetSide||null)).map(l=>l.setNumber||0)) + 1
     : 1;
   const opts = listExercises.map(e => `<option value="${e.id}" ${e.id===selectedExId?"selected":""}>${esc(e.name)}</option>`).join("");
   const todaysLogs = logs.filter(l => l.date === form.date).sort((a,b)=> a.id < b.id ? 1 : -1);
@@ -1703,7 +1726,7 @@ const BACKUP_KEYS = [
   "ironlog_dismissed_suggestions", "ironlog_dismissed_reorder", "ironlog_celebrated",
   "ironlog_dismissed_summary", "ironlog_conditions", "ironlog_memos",
   "ironlog_body_metrics", "ironlog_metric_weekday", "ironlog_body_metric_reminder_dismissed",
-  "ironlog_deload_weeks",
+  "ironlog_deload_weeks", "ironlog_excused_days", "ironlog_day_override",
 ];
 function exportData(){
   const payload = { exportedAt: new Date().toISOString(), data: {} };
@@ -1726,9 +1749,9 @@ const IMPORT_CATEGORIES = [
   {label: "種目リスト(部位・フラグなど)", keys: ["ironlog_exercises"]},
   {label: "記録(ログ)", keys: ["ironlog_logs"]},
   {label: "週間メニュー(目安重量・構成)", keys: ["ironlog_program", "ironlog_weektype"]},
-  {label: "コンディション・メモ", keys: ["ironlog_conditions", "ironlog_memos"]},
+  {label: "コンディション・メモ・仕方ない日", keys: ["ironlog_conditions", "ironlog_memos", "ironlog_excused_days"]},
   {label: "体組成(体重・体脂肪率など)", keys: ["ironlog_body_metrics", "ironlog_metric_weekday", "ironlog_body_metric_reminder_dismissed"]},
-  {label: "デロード週の設定", keys: ["ironlog_deload_weeks"]},
+  {label: "デロード週・曜日切替の設定", keys: ["ironlog_deload_weeks", "ironlog_day_override"]},
   {label: "提案・演出の履歴", keys: ["ironlog_dismissed_suggestions", "ironlog_dismissed_reorder", "ironlog_celebrated", "ironlog_dismissed_summary"]},
 ];
 let pendingImport = null;
@@ -2214,6 +2237,11 @@ function render(){
   document.querySelectorAll("nav.tabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
 }
 render();
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
